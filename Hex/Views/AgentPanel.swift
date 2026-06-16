@@ -14,7 +14,9 @@ import AppKit
 import SwiftUI
 
 final class AgentPanel: NSPanel {
-  // Must become key so the SwiftUI TextField can receive typed characters.
+  // Must become key so the reply field accepts typed characters when you click the card. A
+  // hook-driven appearance still won't steal focus: the hook delivers the deeplink with
+  // `open -g`, so Hex never comes to the foreground and the panel never auto-becomes key.
   override var canBecomeKey: Bool { true }
   // Never become "main" — we don't want to masquerade as the active app's main window.
   override var canBecomeMain: Bool { false }
@@ -42,7 +44,9 @@ final class AgentPanel: NSPanel {
     hasShadow = false
     hidesOnDeactivate = false        // we control dismissal explicitly
     isReleasedWhenClosed = false
-    animationBehavior = .utilityWindow
+    // No show/hide fade: fading a translucent material window flashes light mid-transition
+    // (a "white flash" when a reply is confirmed). Appear/disappear instantly instead.
+    animationBehavior = .none
     // Note: .canJoinAllSpaces and .moveToActiveSpace are mutually exclusive — combining
     // them trips an NSWindow assertion. Use canJoinAllSpaces so the panel follows the user.
     collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]

@@ -194,10 +194,11 @@ class HexAppDelegate: NSObject, NSApplicationDelegate {
 		// advancing the queue, which would make the card jump under the cursor.
 		if !panel.isVisible {
 			panel.positionNearMouse()
-			panel.orderFrontRegardless()
 		}
-		// Become key only when the user summoned or engaged the window. A hook-driven passive
-		// appearance must NOT steal keyboard focus from whatever the user is typing in.
+		panel.orderFrontRegardless()
+		// Take the keyboard only for an engaged/summoned show. A hook-driven passive appearance
+		// leaves focus where it is — and `open -g` keeps Hex in the background so it can't steal
+		// it; the panel only becomes key when you actually click the card to reply.
 		if focus {
 			panel.makeKey()
 		}

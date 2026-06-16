@@ -305,14 +305,16 @@ struct ClaudePluginClientLive {
     fi
   }
 
+  # -g: deliver the URL in the BACKGROUND. Without it, `open` activates Hex, yanking your
+  # editor out of focus the moment a card appears (and beeping when keys hit no field).
   open_url() {
-    if [ -n "$HEX_BUNDLE_ID" ] && /usr/bin/open -b "$HEX_BUNDLE_ID" "$1" >/dev/null 2>&1; then
+    if [ -n "$HEX_BUNDLE_ID" ] && /usr/bin/open -g -b "$HEX_BUNDLE_ID" "$1" >/dev/null 2>&1; then
       return 0
     fi
-    if [ -n "$HEX_APP_PATH" ] && [ -d "$HEX_APP_PATH" ] && /usr/bin/open -a "$HEX_APP_PATH" "$1" >/dev/null 2>&1; then
+    if [ -n "$HEX_APP_PATH" ] && [ -d "$HEX_APP_PATH" ] && /usr/bin/open -g -a "$HEX_APP_PATH" "$1" >/dev/null 2>&1; then
       return 0
     fi
-    /usr/bin/open "$1" >/dev/null 2>&1 || open "$1" >/dev/null 2>&1
+    /usr/bin/open -g "$1" >/dev/null 2>&1 || open -g "$1" >/dev/null 2>&1
   }
 
   if command -v jq >/dev/null 2>&1; then

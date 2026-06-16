@@ -20,10 +20,6 @@ struct PasteboardClient {
     var paste: @Sendable (String) async -> Void
     var copy: @Sendable (String) async -> Void
     var sendKeyboardCommand: @Sendable (KeyboardCommand) async -> Void
-    /// Types `text` as synthesized character keystrokes into the focused app. Unlike
-    /// `paste` (⌘V), this works with terminal TUIs (e.g. Claude Code's question prompt)
-    /// that read typed input but ignore clipboard paste.
-    var type: @Sendable (String) async -> Void
 }
 
 extension PasteboardClient: DependencyKey {
@@ -38,9 +34,6 @@ extension PasteboardClient: DependencyKey {
             },
             sendKeyboardCommand: { command in
                 await live.sendKeyboardCommand(command)
-            },
-            type: { text in
-                await live.typeText(text)
             }
         )
     }
@@ -103,25 +96,6 @@ struct PasteboardClientLive {
         pasteboard.setString(text, forType: .string)
     }
 
-    /// Types `text` one character at a time as Unicode key events. Works in terminal
-    /// TUIs that read typed input but ignore ⌘V.
-    @MainActor
-    func typeText(_ text: String) async {
-        let source = CGEventSource(stateID: .combinedSessionState)
-        for scalar in text.unicodeScalars {
-            let units = Array(String(scalar).utf16)
-            if let down = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true) {
-                down.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
-                down.post(tap: .cghidEventTap)
-            }
-            if let up = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: false) {
-                up.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
-                up.post(tap: .cghidEventTap)
-            }
-            try? await Task.sleep(for: .milliseconds(4))
-        }
-    }
-    
     @MainActor
     func sendKeyboardCommand(_ command: KeyboardCommand) async {
         let source = CGEventSource(stateID: .combinedSessionState)

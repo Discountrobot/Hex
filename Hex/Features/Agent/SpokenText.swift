@@ -2,25 +2,22 @@
 //  SpokenText.swift
 //  Hex
 //
-//  Turns an assistant's markdown reply into something worth reading ALOUD — short and
-//  actionable. Two layers, in order:
-//
-//  1. Markdown filter: drop code blocks entirely, reduce `[label](url)` to its label,
-//     drop bare URLs, and strip formatting punctuation the synthesizer would stumble on.
-//  2. Heuristic condense: keep roughly the first 60% of the reply by length (whole
-//     sentences) plus any trailing question, so long explanations become a short ask.
+//  Turns an assistant's markdown reply into something worth reading ALOUD: drop code blocks
+//  entirely, reduce `[label](url)` to its label, drop bare URLs, and strip the formatting
+//  punctuation the synthesizer would stumble on. The full (cleaned) reply is read — there's
+//  no length limiting.
 //
 
 import Foundation
 
 enum SpokenText {
   /// The text to READ ALOUD for a message body: the markdown reply with code blocks and
-  /// URLs stripped, then condensed to a short, actionable version.
+  /// URLs stripped.
   static func spoken(from raw: String) -> String {
-    condense(filterMarkdown(raw))
+    filterMarkdown(raw)
   }
 
-  // MARK: 1. Markdown → speech
+  // MARK: Markdown → speech
 
   private static func filterMarkdown(_ text: String) -> String {
     var s = text
@@ -45,61 +42,6 @@ enum SpokenText {
     // Collapse whitespace.
     s = replace(s, #"\s+"#, with: " ")
     return s.trimmingCharacters(in: .whitespacesAndNewlines)
-  }
-
-  // MARK: 2. Heuristic condense
-
-  /// Roughly the first 60% of the reply by length (whole sentences), always keeping a
-  /// trailing question so the "what's next" ask survives. Condenses long explanations
-  /// without collapsing them to a single micro-sentence.
-  private static let retainFraction = 0.6
-
-  private static func condense(_ text: String) -> String {
-    let sentences = splitSentences(text)
-    guard sentences.count > 1 else { return sentences.first ?? text }
-
-    let total = sentences.reduce(0) { $0 + $1.count }
-    let target = Double(total) * retainFraction
-    var kept: [String] = []
-    var acc = 0
-    for sentence in sentences {
-      kept.append(sentence)
-      acc += sentence.count
-      if Double(acc) >= target { break }
-    }
-
-    // Always include a trailing question (the actionable ask), even if it fell past 60%.
-    if let last = sentences.last, last.hasSuffix("?"), kept.last != last {
-      kept.append(last)
-    }
-    return kept.joined(separator: " ")
-  }
-
-  // Kept deliberately short: an abbreviation like "al." would also match "material.",
-  // suppressing real sentence breaks, so only include unambiguous multi-dot forms.
-  private static let abbreviations = ["e.g.", "i.e.", "etc.", "vs."]
-
-  private static func splitSentences(_ text: String) -> [String] {
-    var sentences: [String] = []
-    var current = ""
-    let chars = Array(text)
-    for (i, ch) in chars.enumerated() {
-      current.append(ch)
-      guard ch == "." || ch == "!" || ch == "?" else { continue }
-      // Only a real boundary if the next character is whitespace or the end — so dots
-      // inside "AgentView.swift" or "e.g." don't split a sentence mid-word.
-      let next = i + 1 < chars.count ? chars[i + 1] : nil
-      guard next == nil || next!.isWhitespace else { continue }
-      // Don't split after a common abbreviation ("e.g.", "i.e.", "etc.").
-      let lower = current.trimmingCharacters(in: .whitespaces).lowercased()
-      if ch == ".", abbreviations.contains(where: { lower.hasSuffix($0) }) { continue }
-      let trimmed = current.trimmingCharacters(in: .whitespaces)
-      if !trimmed.isEmpty { sentences.append(trimmed) }
-      current = ""
-    }
-    let tail = current.trimmingCharacters(in: .whitespaces)
-    if !tail.isEmpty { sentences.append(tail) }
-    return sentences
   }
 
   // MARK: Helper

@@ -95,7 +95,7 @@ struct PasteboardClientLive {
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
     }
-
+    
     @MainActor
     func sendKeyboardCommand(_ command: KeyboardCommand) async {
         let source = CGEventSource(stateID: .combinedSessionState)

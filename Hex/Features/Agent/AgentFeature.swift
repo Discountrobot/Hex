@@ -112,12 +112,9 @@ struct AgentFeature {
     var isVisible: Bool = false
     /// True while the panel is intentionally hidden waiting for speech synthesis.
     var pendingReveal: Bool = false
-    /// Shown when the window is summoned but no session is blocked and waiting — so the card
-    /// explains that instead of opening an empty reply box that has nothing to answer.
-    var noSessionsError: Bool = false
     /// Whether the panel should hold keyboard focus. False when a hook auto-presents, so the
     /// card appears passively and never steals keystrokes from the editor you're typing in;
-    /// true once you summon or "engage" it (agent hotkey / tapping the selector), which is
+    /// true once you engage it (tapping the selector / clicking the reply field), which is
     /// when we make it key so typing and dictation land in the reply field.
     var wantsFocus: Bool = false
 
@@ -164,7 +161,6 @@ struct AgentFeature {
 
   enum Action {
     case show(ShowPayload)
-    case openManually
     case selectAgent(String)              // switch the window to another blocked session
     case promptLoaded(AgentRequest.ID, AgentPrompt)
     case revealPanel
@@ -193,8 +189,6 @@ struct AgentFeature {
         let enabled = state.hexSettings.agentPluginsEnabled
         agentFeatureLogger.notice("Agent show requested (enabled=\(enabled), event=\(payload.event ?? "nil", privacy: .public), tool=\(payload.tool ?? "nil", privacy: .public))")
         guard enabled else { return .none }
-        // A real prompt arrived — clear any "nothing to target" state from a prior summon.
-        state.noSessionsError = false
 
         // The user answered in the terminal — the hook script already released this
         // session's blocked sibling. Drop its queued card and advance if it was showing.
@@ -238,30 +232,6 @@ struct AgentFeature {
         }
         return .none
 
-      case .openManually:
-        guard state.hexSettings.agentPluginsEnabled else { return .none }
-        // A passive card on screen (a hook appeared while you were working): the first press
-        // "engages" it — grab focus so you can type or dictate a reply. Once it's focused, a
-        // second press toggles it away.
-        if state.isVisible {
-          if state.wantsFocus { return .send(.dismiss) }
-          state.wantsFocus = true
-          return .cancel(id: CancelID.autoSend)
-        }
-        agentFeatureLogger.notice("Agent window summoned via hotkey")
-        state.isVisible = true
-        state.pendingReveal = false
-        state.noSessionsError = false
-        state.wantsFocus = true
-
-        // Summoning only does something when a session is blocked and waiting. There's no
-        // proactive "talk to an idle session" anymore — that needs a live hook to answer.
-        if let blocked = state.requests.first {
-          return .merge(.cancel(id: CancelID.autoSend), present(&state, id: blocked.id))
-        }
-        state.noSessionsError = true
-        return .cancel(id: CancelID.autoSend)
-
       case let .selectAgent(sessionID):
         // Already showing it — nothing to do.
         if state.current?.sessionID == sessionID { return .none }
@@ -287,7 +257,6 @@ struct AgentFeature {
         guard let id = state.currentID, let request = state.requests[id: id] else {
           state.isVisible = false
           state.pendingReveal = false
-          state.noSessionsError = false
           return .merge(
             .cancel(id: CancelID.autoSend),
             .run { _ in await speechSynthesizer.stop() }

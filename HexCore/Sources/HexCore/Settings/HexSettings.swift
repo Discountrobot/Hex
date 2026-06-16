@@ -60,8 +60,6 @@ public struct HexSettings: Codable, Equatable, Sendable {
 	/// across turns. The first/primary session keeps the chosen default voice; additional
 	/// sessions get distinct voices. When false, every session uses the default voice.
 	public var agentDistinctSessionVoices: Bool
-	/// Global hotkey that summons the agent window from anywhere; nil = not set.
-	public var agentWindowHotkey: HotKey?
 
 	private mutating func normalizeDoubleTapSettings() {
 		if !doubleTapLockEnabled {
@@ -98,8 +96,7 @@ public struct HexSettings: Codable, Equatable, Sendable {
 		agentAutoSubmit: Bool = true,
 		agentSpeakOutput: Bool = false,
 		agentVoiceIdentifier: String? = nil,
-		agentDistinctSessionVoices: Bool = true,
-		agentWindowHotkey: HotKey? = nil
+		agentDistinctSessionVoices: Bool = true
 	) {
 		self.soundEffectsEnabled = soundEffectsEnabled
 		self.soundEffectsVolume = soundEffectsVolume
@@ -130,7 +127,6 @@ public struct HexSettings: Codable, Equatable, Sendable {
 		self.agentSpeakOutput = agentSpeakOutput
 		self.agentVoiceIdentifier = agentVoiceIdentifier
 		self.agentDistinctSessionVoices = agentDistinctSessionVoices
-		self.agentWindowHotkey = agentWindowHotkey
 		normalizeDoubleTapSettings()
 	}
 
@@ -184,7 +180,6 @@ private enum HexSettingKey: String, CodingKey, CaseIterable {
 	case agentSpeakOutput
 	case agentVoiceIdentifier
 	case agentDistinctSessionVoices
-	case agentWindowHotkey
 }
 
 private struct SettingsField<Value: Codable & Sendable> {
@@ -329,14 +324,6 @@ private enum HexSettingsSchema {
 				try container.encodeIfPresent(value, forKey: key)
 			}
 		).eraseToAny(),
-		SettingsField(.agentDistinctSessionVoices, keyPath: \.agentDistinctSessionVoices, default: defaults.agentDistinctSessionVoices).eraseToAny(),
-		SettingsField(
-			.agentWindowHotkey,
-			keyPath: \.agentWindowHotkey,
-			default: defaults.agentWindowHotkey,
-			encode: { container, key, value in
-				try container.encodeIfPresent(value, forKey: key)
-			}
-		).eraseToAny()
+		SettingsField(.agentDistinctSessionVoices, keyPath: \.agentDistinctSessionVoices, default: defaults.agentDistinctSessionVoices).eraseToAny()
 	]
 }

@@ -15,7 +15,6 @@ private typealias SettingsAudioPropertyListenerBlock = @convention(block) (UInt3
 private enum HotKeyCaptureTarget {
   case recording
   case pasteLastTranscript
-  case agentWindow
 }
 
 extension SharedReaderKey
@@ -27,10 +26,6 @@ extension SharedReaderKey
   
   static var isSettingPasteLastTranscriptHotkey: Self {
     Self[.inMemory("isSettingPasteLastTranscriptHotkey"), default: false]
-  }
-
-  static var isSettingAgentWindowHotkey: Self {
-    Self[.inMemory("isSettingAgentWindowHotkey"), default: false]
   }
 
   static var isRemappingScratchpadFocused: Self {
@@ -47,7 +42,6 @@ struct SettingsFeature {
     @Shared(.hexSettings) var hexSettings: HexSettings
     @Shared(.isSettingHotKey) var isSettingHotKey: Bool = false
     @Shared(.isSettingPasteLastTranscriptHotkey) var isSettingPasteLastTranscriptHotkey: Bool = false
-    @Shared(.isSettingAgentWindowHotkey) var isSettingAgentWindowHotkey: Bool = false
     @Shared(.isRemappingScratchpadFocused) var isRemappingScratchpadFocused: Bool = false
     @Shared(.transcriptionHistory) var transcriptionHistory: TranscriptionHistory
     @Shared(.hotkeyPermissionState) var hotkeyPermissionState: HotkeyPermissionState
@@ -55,7 +49,6 @@ struct SettingsFeature {
     var languages: IdentifiedArrayOf<Language> = []
     var currentModifiers: Modifiers = .init(modifiers: [])
     var currentPasteLastModifiers: Modifiers = .init(modifiers: [])
-    var currentAgentWindowModifiers: Modifiers = .init(modifiers: [])
     var remappingScratchpadText: String = ""
     
     // Available microphones
@@ -121,8 +114,6 @@ struct SettingsFeature {
     case setAgentVoice(String?)
     case setAgentDistinctSessionVoices(Bool)
     case previewAgentVoice
-    case startSettingAgentWindowHotkey
-    case clearAgentWindowHotkey
     case prepareKokoro
     case kokoroPrepareProgress(Double)
     case kokoroPrepared(success: Bool)
@@ -166,9 +157,6 @@ struct SettingsFeature {
     case .pasteLastTranscript:
       state.$isSettingPasteLastTranscriptHotkey.withLock { $0 = true }
       state.currentPasteLastModifiers = .init(modifiers: [])
-    case .agentWindow:
-      state.$isSettingAgentWindowHotkey.withLock { $0 = true }
-      state.currentAgentWindowModifiers = .init(modifiers: [])
     }
   }
 
@@ -180,9 +168,6 @@ struct SettingsFeature {
     case .pasteLastTranscript:
       state.$isSettingPasteLastTranscriptHotkey.withLock { $0 = false }
       state.currentPasteLastModifiers = .init(modifiers: [])
-    case .agentWindow:
-      state.$isSettingAgentWindowHotkey.withLock { $0 = false }
-      state.currentAgentWindowModifiers = .init(modifiers: [])
     }
   }
 
@@ -192,8 +177,6 @@ struct SettingsFeature {
       state.currentModifiers
     case .pasteLastTranscript:
       state.currentPasteLastModifiers
-    case .agentWindow:
-      state.currentAgentWindowModifiers
     }
   }
 
@@ -203,8 +186,6 @@ struct SettingsFeature {
       state.currentModifiers = modifiers
     case .pasteLastTranscript:
       state.currentPasteLastModifiers = modifiers
-    case .agentWindow:
-      state.currentAgentWindowModifiers = modifiers
     }
   }
 
@@ -219,11 +200,6 @@ struct SettingsFeature {
       guard let key else { return }
       state.$hexSettings.withLock {
         $0.pasteLastTranscriptHotkey = HotKey(key: key, modifiers: modifiers.erasingSides())
-      }
-    case .agentWindow:
-      guard let key else { return }
-      state.$hexSettings.withLock {
-        $0.agentWindowHotkey = HotKey(key: key, modifiers: modifiers.erasingSides())
       }
     }
   }
@@ -460,18 +436,7 @@ struct SettingsFeature {
         state.$hexSettings.withLock { $0.pasteLastTranscriptHotkey = nil }
         return .none
 
-      case .startSettingAgentWindowHotkey:
-        beginCapture(.agentWindow, state: &state)
-        return .none
-
-      case .clearAgentWindowHotkey:
-        state.$hexSettings.withLock { $0.agentWindowHotkey = nil }
-        return .none
-
       case let .keyEvent(keyEvent):
-        if state.isSettingAgentWindowHotkey {
-          return handleCapture(keyEvent, for: .agentWindow, state: &state)
-        }
         if state.isSettingPasteLastTranscriptHotkey {
           return handleCapture(keyEvent, for: .pasteLastTranscript, state: &state)
         }

@@ -188,11 +188,9 @@ struct AppFeature {
       @Shared(.isSettingPasteLastTranscriptHotkey) var isSettingPasteLastTranscriptHotkey: Bool
       @Shared(.hexSettings) var hexSettings: HexSettings
 
-      @Shared(.isSettingAgentWindowHotkey) var isSettingAgentWindowHotkey: Bool
-
       let token = keyEventMonitor.handleKeyEvent { keyEvent in
         // Skip if user is setting a hotkey
-        if isSettingPasteLastTranscriptHotkey || isSettingAgentWindowHotkey {
+        if isSettingPasteLastTranscriptHotkey {
           return false
         }
 
@@ -206,16 +204,6 @@ struct AppFeature {
             send(.pasteLastTranscript)
           }
           return true // Intercept the key event
-        }
-
-        // Summon-the-agent-window hotkey
-        if let agentHotkey = hexSettings.agentWindowHotkey,
-           key == agentHotkey.key,
-           keyEvent.modifiers.matchesExactly(agentHotkey.modifiers) {
-          MainActor.assumeIsolated {
-            send(.agent(.openManually))
-          }
-          return true
         }
 
         return false

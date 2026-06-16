@@ -19,54 +19,21 @@ struct AgentView: View {
   private let cardWidth: CGFloat = 480
 
   var body: some View {
-    Group {
-      if store.noSessionsError {
-        noSessionsCard
-      } else {
-        VStack(spacing: 10) {
-          if hasOutput {
-            outputCard
-          }
-          inputCard
-        }
-        // Focus the reply field only when the user has summoned or engaged the window — never
-        // on a passive hook appearance, so it can't steal keystrokes from the editor.
-        .onAppear { if store.wantsFocus { focusReply() } }
-        .onChange(of: store.wantsFocus) { _, wants in
-          if wants { focusReply() } else { replyFocused = false }
-        }
+    VStack(spacing: 10) {
+      if hasOutput {
+        outputCard
       }
+      inputCard
+    }
+    // Focus the reply field only when you've engaged the card (tapping the selector / clicking
+    // the field) — never on a passive hook appearance, so it can't steal keystrokes.
+    .onAppear { if store.wantsFocus { focusReply() } }
+    .onChange(of: store.wantsFocus) { _, wants in
+      if wants { focusReply() } else { replyFocused = false }
     }
     .frame(width: cardWidth)
     .padding(16) // breathing room so each card's shadow isn't clipped by the window
     .onExitCommand { store.send(.dismiss) }
-  }
-
-  // MARK: Empty state (nothing to target)
-
-  /// Shown when the window is summoned with no session to talk to — no remembered session
-  /// and no live `claude` terminal. Replaces the dead-end compose card with a clear reason.
-  private var noSessionsCard: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      HStack(spacing: 8) {
-        Image(systemName: "bubble.left.and.exclamationmark.bubble.right")
-          .font(.title3)
-          .foregroundStyle(.secondary)
-        Text("No Claude sessions")
-          .font(.headline)
-      }
-      Text("There's no running Claude Code session to talk to yet. Start one — or wait for Claude to ask a question, request permission, or finish a turn — then summon this window again.")
-        .font(.callout)
-        .foregroundStyle(.secondary)
-        .fixedSize(horizontal: false, vertical: true)
-      HStack {
-        Spacer()
-        hint("Dismiss", key: "esc") { store.send(.dismiss) }
-      }
-    }
-    .padding(14)
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .modifier(FloatingCard())
   }
 
   /// Async hop so the field is in the hierarchy before we make it first responder.

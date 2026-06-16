@@ -90,7 +90,6 @@ struct AgentPluginsSectionView: View {
 				Image(systemName: "person.2.wave.2")
 			}
 
-			AgentWindowHotkeyRow(store: store)
 		} header: {
 			Text("Agent Plugins")
 		}
@@ -156,62 +155,5 @@ struct AgentPluginsSectionView: View {
 			.disabled(command.isEmpty)
 			.help("Copy to clipboard")
 		}
-	}
-}
-
-private struct AgentWindowHotkeyRow: View {
-	@ObserveInjection var inject
-	@Bindable var store: StoreOf<SettingsFeature>
-
-	var body: some View {
-		let hotkey = store.hexSettings.agentWindowHotkey
-
-		VStack(alignment: .leading, spacing: 12) {
-			Label {
-				VStack(alignment: .leading, spacing: 2) {
-					Text("Summon Agent Window")
-						.font(.subheadline.weight(.semibold))
-					Text("Assign a shortcut (modifier + key) to open the agent window from anywhere and talk to Claude.")
-						.settingsCaption()
-				}
-			} icon: {
-				Image(systemName: "bubble.left.and.text.bubble.right")
-			}
-
-			let key = store.isSettingAgentWindowHotkey ? nil : hotkey?.key
-			let modifiers = store.isSettingAgentWindowHotkey ? store.currentAgentWindowModifiers : (hotkey?.modifiers ?? .init(modifiers: []))
-
-			HStack {
-				Spacer()
-				ZStack {
-					HotKeyView(modifiers: modifiers, key: key, isActive: store.isSettingAgentWindowHotkey)
-
-					if !store.isSettingAgentWindowHotkey, hotkey == nil {
-						Text("Not set")
-							.settingsCaption()
-					}
-				}
-				.contentShape(Rectangle())
-				.onTapGesture {
-					store.send(.startSettingAgentWindowHotkey)
-				}
-				Spacer()
-			}
-
-			if store.isSettingAgentWindowHotkey {
-				Text("Use at least one modifier (⌘, ⌥, ⇧, ⌃) plus a key.")
-					.settingsCaption()
-			} else if hotkey != nil {
-				Button {
-					store.send(.clearAgentWindowHotkey)
-				} label: {
-					Label("Clear shortcut", systemImage: "xmark.circle")
-				}
-				.buttonStyle(.borderless)
-				.font(.caption)
-				.foregroundStyle(.secondary)
-			}
-		}
-		.enableInjection()
 	}
 }

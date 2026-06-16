@@ -2,4 +2,10 @@
 "hex-app": minor
 ---
 
-Add Agent Plugins: a voice window for Claude Code. When Claude Code finishes a turn, asks a multiple-choice question, or requests a permission, Hex pops a floating window showing the prompt with a field to dictate or type a reply. Answers are delivered in-band via a blocking Claude Code hook — Stop follow-ups, AskUserQuestion answers, and permission allow/deny reach the exact session with no terminal focusing or synthetic keystrokes, so replies land in the right session even while you work in another app. Multiple blocked sessions queue up (one card per project, each with its own draft, with an `n / N` position when several wait) and quitting Hex releases every blocked hook so nothing hangs. Optional on-device text-to-speech reads Claude's output aloud with a selectable voice and a distinct voice per concurrent project; dictated or pasted replies auto-send after a short countdown; and a global hotkey summons the window from anywhere. Install the hooks with one click from the new Agent Plugins settings tab.
+Add **Agent Plugins** — an opt-in Claude Code integration with a floating voice window (#2). When an installed agent finishes a turn, asks a multiple-choice question, or requests a permission, a window appears so you can answer by voice, typing, or tapping an option without leaving your editor.
+
+- **Sandbox-friendly install:** Hex stays sandboxed and never edits `~/.claude` itself. Settings → Agent Plugins shows a one-time copy-paste terminal command that registers the hooks; the hook and Hex exchange messages through Hex's own container.
+- **In-band replies:** answers are delivered to the exact Claude session via a response file the hook relays — they can never land in the wrong window.
+- **Concurrent sessions:** blocked sessions queue one card at a time, and a header selector of project avatars (the repo's GitHub owner) switches between the ones waiting.
+- **Stays out of your way:** a hook-driven card appears passively without stealing keyboard focus from the editor you're typing in; engage it to reply, and any Enter (with or without a modifier) sends.
+- **Optional read-aloud:** agent output can be spoken on-device via Kokoro TTS, with a selectable voice and a distinct voice per concurrent project.

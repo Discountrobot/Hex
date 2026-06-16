@@ -176,7 +176,8 @@ class HexAppDelegate: NSObject, NSApplicationDelegate {
 			transcriptPath: value("transcript"),
 			payloadPath: value("payload"),
 			inlineMessage: value("message"),
-			githubOwner: value("owner")
+			githubOwner: value("owner"),
+			branch: value("branch")
 		)
 		Task { @MainActor in
 			HexApp.appStore.send(.agent(.show(payload)))

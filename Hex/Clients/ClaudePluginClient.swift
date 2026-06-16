@@ -339,6 +339,8 @@ struct ClaudePluginClientLive {
   # project dir outside its container — and pass it so the app can build the avatar URL.
   cwd=$(printf '%s' "$input" | (jq -r '.cwd // ""' 2>/dev/null || python3 -c 'import sys,json;sys.stdout.write(json.load(sys.stdin).get("cwd",""))' 2>/dev/null))
   if [ -n "$cwd" ]; then
+    branch=$(git -C "$cwd" rev-parse --abbrev-ref HEAD 2>/dev/null)
+    [ -n "$branch" ] && [ "$branch" != "HEAD" ] && base="${base}&branch=$(printf '%s' "$branch" | encode)"
     remote=$(git -C "$cwd" config --get remote.origin.url 2>/dev/null)
     case "$remote" in
       *github.com*)

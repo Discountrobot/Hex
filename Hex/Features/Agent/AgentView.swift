@@ -83,10 +83,7 @@ struct AgentView: View {
         agentSelector(agents)
         Spacer(minLength: 0)
         if let project = store.projectName {
-          Text(project)
-            .font(.caption.weight(.semibold))
-            .lineLimit(1)
-            .foregroundStyle(.secondary)
+          projectLabel(project)
         }
       }
       .padding(.bottom, 2)
@@ -95,13 +92,35 @@ struct AgentView: View {
         avatar(store.projectIconURL)
           .frame(width: 18, height: 18)
           .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-        Text(project)
-          .font(.caption.weight(.semibold))
+        projectLabel(project)
         Spacer(minLength: 0)
       }
-      .lineLimit(1)
       .padding(.bottom, 2)
     }
+  }
+
+  /// `project • branch` for the header, with the branch ellipsized past a sane length so a
+  /// long branch can't blow out the one-line header.
+  @ViewBuilder
+  private func projectLabel(_ project: String) -> some View {
+    HStack(spacing: 5) {
+      Text(project)
+        .font(.caption.weight(.semibold))
+      if let branch = store.branchName, !branch.isEmpty {
+        Text("•")
+          .font(.caption2)
+          .foregroundStyle(.tertiary)
+        Text(Self.truncatedBranch(branch))
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+    }
+    .lineLimit(1)
+  }
+
+  /// Truncates a long branch name with an ellipsis so the header stays one tidy line.
+  private static func truncatedBranch(_ branch: String, max: Int = 28) -> String {
+    branch.count > max ? String(branch.prefix(max - 1)) + "…" : branch
   }
 
   /// A tappable avatar per blocked session. The current one is ringed and larger; tapping a

@@ -39,6 +39,8 @@ struct AgentFeature {
     /// hook runs unsandboxed and can read the repo; the sandboxed app can't spawn `git`, so it
     /// just builds the avatar URL from this.
     var githubOwner: String?
+    /// The current git branch, also resolved by the hook (sandboxed Hex can't run `git`).
+    var branch: String?
   }
 
   /// The identity of one Claude session: where it lives and the project it belongs to.
@@ -48,6 +50,8 @@ struct AgentFeature {
     /// The project's GitHub owner avatar, resolved once from the repo's `origin` remote. nil
     /// until resolved, or when the project has no GitHub remote (the header shows a folder).
     var projectIconURL: URL? = nil
+    /// The current git branch (resolved by the hook); nil outside a repo or on a detached HEAD.
+    var branch: String? = nil
 
     /// The project name shown in the header — the basename of the session's cwd.
     var projectName: String? {
@@ -85,7 +89,8 @@ struct AgentFeature {
       context = SessionContext(
         cwd: payload.cwd,
         transcriptPath: payload.transcriptPath,
-        projectIconURL: payload.githubOwner.flatMap { Self.avatarURL(owner: $0) }
+        projectIconURL: payload.githubOwner.flatMap { Self.avatarURL(owner: $0) },
+        branch: payload.branch
       )
       prompt = .message(payload.inlineMessage ?? "")
     }
@@ -133,6 +138,8 @@ struct AgentFeature {
     /// The project name shown in the card header — the basename of the session's cwd.
     var projectName: String? { current?.context.projectName }
     var projectIconURL: URL? { current?.context.projectIconURL }
+    /// The current git branch for the visible card, when the hook resolved one.
+    var branchName: String? { current?.context.branch }
 
     /// One pickable agent in the header selector.
     struct SelectableAgent: Equatable, Identifiable {

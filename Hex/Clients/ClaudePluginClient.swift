@@ -71,6 +71,8 @@ struct ClaudePluginClientLive {
     ("UserPromptSubmit", ""),
   ]
 
+  @Shared(.hexSettings) var hexSettings: HexSettings
+
   /// Hex's container Data dir. Under the sandbox this is
   /// `~/Library/Containers/com.kitlangton.Hex/Data`; the user's shell reaches the same place
   /// via `$HOME/Library/Containers/…`. Both sides therefore agree on absolute paths.
@@ -80,6 +82,9 @@ struct ClaudePluginClientLive {
   private var realHookURL: URL { agentDir.appendingPathComponent("hook.sh") }
   private var installScriptURL: URL { agentDir.appendingPathComponent("install.sh") }
   private var uninstallScriptURL: URL { agentDir.appendingPathComponent("uninstall.sh") }
+  /// Sentinel the hook checks first: present only while the feature is enabled, so a disabled
+  /// toggle makes every hook exit instantly instead of blocking ~9.5 min on a response.
+  private var enabledFlagURL: URL { agentDir.appendingPathComponent("enabled") }
 
   var installCommand: String { "sh '\(installScriptURL.path)'" }
   var uninstallCommand: String { "sh '\(uninstallScriptURL.path)'" }
@@ -95,7 +100,7 @@ struct ClaudePluginClientLive {
       let bundleID = Bundle.main.bundleIdentifier ?? "com.kitlangton.Hex"
       let appPath = Bundle.main.bundlePath
       writeIfChanged(
-        Self.hookScript(bundleID: bundleID, appPath: appPath, ioDir: ioDir.path),
+        Self.hookScript(bundleID: bundleID, appPath: appPath, ioDir: ioDir.path, enabledFlag: enabledFlagURL.path),
         to: realHookURL, executable: true
       )
       writeIfChanged(
@@ -103,8 +108,21 @@ struct ClaudePluginClientLive {
         to: installScriptURL, executable: true
       )
       writeIfChanged(Self.uninstallScript(), to: uninstallScriptURL, executable: true)
+      syncEnabledFlag()
     } catch {
       pluginLogger.error("Failed to prepare Claude agent scripts: \(error.localizedDescription)")
+    }
+  }
+
+  /// Mirrors the in-app toggle onto disk for the hook to read: present when enabled, absent
+  /// when disabled. Called from `prepare()` (launch / settings open / toggle).
+  private func syncEnabledFlag() {
+    if hexSettings.agentPluginsEnabled {
+      if !FileManager.default.fileExists(atPath: enabledFlagURL.path) {
+        FileManager.default.createFile(atPath: enabledFlagURL.path, contents: nil)
+      }
+    } else {
+      try? FileManager.default.removeItem(at: enabledFlagURL)
     }
   }
 
@@ -206,11 +224,12 @@ struct ClaudePluginClientLive {
 
   // MARK: Real hook
 
-  static func hookScript(bundleID: String, appPath: String, ioDir: String) -> String {
+  static func hookScript(bundleID: String, appPath: String, ioDir: String, enabledFlag: String) -> String {
     hookScriptTemplate
       .replacingOccurrences(of: "__HEX_BUNDLE_ID__", with: bundleID)
       .replacingOccurrences(of: "__HEX_APP_PATH__", with: appPath)
       .replacingOccurrences(of: "__IO_DIR__", with: ioDir)
+      .replacingOccurrences(of: "__ENABLED_FLAG__", with: enabledFlag)
   }
 
   private static let hookScriptTemplate: String = #"""
@@ -218,6 +237,10 @@ struct ClaudePluginClientLive {
   # Hex Agent Plugins hook — bridges Claude Code to the Hex voice window.
   # Generated and managed by Hex.app (Settings → Agent Plugins).
   input=$(cat)
+
+  # Agent Plugins disabled in Hex → do nothing and let Claude continue, instantly. No deeplink,
+  # no Hex launch, no blocking on a response. The sentinel is present only while enabled.
+  [ -f "__ENABLED_FLAG__" ] || exit 0
 
   HEX_BUNDLE_ID="__HEX_BUNDLE_ID__"
   HEX_APP_PATH="__HEX_APP_PATH__"

@@ -600,7 +600,9 @@ struct SettingsFeature {
 
       case let .toggleAgentPluginsEnabled(enabled):
         state.$hexSettings.withLock { $0.agentPluginsEnabled = enabled }
-        return .none
+        // Re-sync the on-disk sentinel so the hook short-circuits immediately when disabled
+        // (and resumes when re-enabled), without re-running the install command.
+        return .run { _ in await claudePlugin.prepare() }
 
       case let .setAgentAutoSubmit(enabled):
         state.$hexSettings.withLock { $0.agentAutoSubmit = enabled }

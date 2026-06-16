@@ -56,21 +56,18 @@ struct AgentPluginsSectionView: View {
 					Button {
 						store.send(.previewAgentVoice)
 					} label: {
-						Image(systemName: "play.circle")
+						// While preparing/playing, swap the play glyph for a spinner so the
+						// model download stays invisible instead of flashing a progress bar.
+						if store.isPreviewingVoice {
+							ProgressView()
+								.controlSize(.small)
+						} else {
+							Image(systemName: "play.circle")
+						}
 					}
 					.buttonStyle(.plain)
 					.help("Preview the selected voice")
-					.disabled(store.kokoroDownloadProgress != nil)
-				}
-				if let progress = store.kokoroDownloadProgress {
-					HStack(spacing: 8) {
-						ProgressView(value: progress)
-							.progressViewStyle(.linear)
-						Text("Downloading Kokoro model… \(Int(progress * 100))%")
-							.font(.caption)
-							.foregroundStyle(.secondary)
-							.fixedSize()
-					}
+					.disabled(store.isPreviewingVoice)
 				}
 				Text("Kokoro voice used when the agent window reads output aloud. The model (~300 MB) downloads on first use.")
 			} icon: {

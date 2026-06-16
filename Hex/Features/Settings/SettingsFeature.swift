@@ -62,9 +62,13 @@ struct SettingsFeature {
     // Agent Plugins
     var agentInstallCommand = ""
     var agentUninstallCommand = ""
-    /// Non-nil while the Kokoro TTS model is downloading (0...1).
+    /// Non-nil while the Kokoro TTS model is downloading (0...1). Drives the internal
+    /// download guard; no longer shown as a bar (see `isPreviewingVoice`).
     var kokoroDownloadProgress: Double?
     var kokoroReady = false
+    /// True from tapping the voice-preview play button until the model is ready and the
+    /// sample has started playing — shown as a spinner in place of the play icon.
+    var isPreviewingVoice = false
 
   }
 
@@ -114,6 +118,7 @@ struct SettingsFeature {
     case setAgentVoice(String?)
     case setAgentDistinctSessionVoices(Bool)
     case previewAgentVoice
+    case voicePreviewFinished
     case prepareKokoro
     case kokoroPrepareProgress(Double)
     case kokoroPrepared(success: Bool)
@@ -612,12 +617,20 @@ struct SettingsFeature {
         return enabled && !state.kokoroReady ? .send(.prepareKokoro) : .none
 
       case .previewAgentVoice:
+        // Spinner from the click through model download + playback, replacing the old
+        // download bar with a single non-janky busy state on the play button.
+        state.isPreviewingVoice = true
         // The Kokoro model must be downloaded before it can make a sound.
         guard state.kokoroReady else { return .send(.prepareKokoro) }
         let voice = state.hexSettings.agentVoiceIdentifier
-        return .run { _ in
+        return .run { send in
           await speechSynthesizer.speak("Hi! This is how Hex will read agent output aloud.", voice)
+          await send(.voicePreviewFinished)
         }
+
+      case .voicePreviewFinished:
+        state.isPreviewingVoice = false
+        return .none
 
       case .prepareKokoro:
         guard state.kokoroDownloadProgress == nil else { return .none } // already downloading
@@ -641,7 +654,11 @@ struct SettingsFeature {
       case let .kokoroPrepared(success):
         state.kokoroDownloadProgress = nil
         state.kokoroReady = success
-        return success ? .send(.previewAgentVoice) : .none
+        guard success else {
+          state.isPreviewingVoice = false
+          return .none
+        }
+        return .send(.previewAgentVoice)
 
       case let .agentCommandsLoaded(install, uninstall):
         state.agentInstallCommand = install

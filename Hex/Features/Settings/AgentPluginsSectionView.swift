@@ -93,8 +93,11 @@ struct AgentPluginsSectionView: View {
 
 		Section {
 			VStack(alignment: .leading, spacing: 10) {
-				Label("Claude Code", systemImage: "chevron.left.forwardslash.chevron.right")
-					.font(.body.weight(.medium))
+				Label {
+					Text("Claude Code").font(.body.weight(.medium))
+				} icon: {
+					brandIcon("IntegrationClaude")
+				}
 				Text("Run this once in a terminal to register the Hex hooks with Claude Code:")
 					.settingsCaption()
 				commandRow(store.agentInstallCommand)
@@ -118,7 +121,7 @@ struct AgentPluginsSectionView: View {
 					Text("Coming soon").settingsCaption()
 				}
 			} icon: {
-				Image(systemName: "cpu")
+				brandIcon("IntegrationCodex")
 			}
 			.disabled(true)
 		} header: {
@@ -128,6 +131,16 @@ struct AgentPluginsSectionView: View {
 				.settingsCaption()
 		}
 		.enableInjection()
+	}
+
+	/// A bundled brand icon (Claude / OpenAI favicons, vendored under Assets.xcassets).
+	@ViewBuilder
+	private func brandIcon(_ assetName: String) -> some View {
+		Image(assetName)
+			.resizable()
+			.aspectRatio(contentMode: .fit)
+			.frame(width: 16, height: 16)
+			.clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
 	}
 
 	/// A monospaced, selectable command with a Copy button.

@@ -335,6 +335,22 @@ struct ClaudePluginClientLive {
       exit 0 ;;
   esac
 
+  # Resolve the project's GitHub owner here — Hex is sandboxed and can't spawn git against a
+  # project dir outside its container — and pass it so the app can build the avatar URL.
+  cwd=$(printf '%s' "$input" | (jq -r '.cwd // ""' 2>/dev/null || python3 -c 'import sys,json;sys.stdout.write(json.load(sys.stdin).get("cwd",""))' 2>/dev/null))
+  if [ -n "$cwd" ]; then
+    remote=$(git -C "$cwd" config --get remote.origin.url 2>/dev/null)
+    case "$remote" in
+      *github.com*)
+        rest=${remote#*github.com}
+        rest=${rest#:}
+        rest=${rest#/}
+        owner=${rest%%/*}
+        [ -n "$owner" ] && base="${base}&owner=$(printf '%s' "$owner" | encode)"
+        ;;
+    esac
+  fi
+
   penc=$(printf '%s' "$payload" | encode)
   open_url "${base}&payload=${penc}"
 

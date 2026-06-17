@@ -10,10 +10,13 @@ class HexAppDelegate: NSObject, NSApplicationDelegate {
 	var invisibleWindow: InvisibleWindow?
 	var settingsWindow: NSWindow?
 	var agentWindow: AgentPanel?
+	var meetingWindow: MeetingPanel?
 	var statusItem: NSStatusItem!
 	private var launchedAtLogin = false
 
 	private var agentVisibilityToken: ObserveToken?
+	private var meetingVisibilityToken: ObserveToken?
+	private let meetingPanelCloseDelegate = MeetingPanelCloseDelegate()
 
 	@Dependency(\.soundEffects) var soundEffect
 	@Dependency(\.recording) var recording
@@ -57,6 +60,16 @@ class HexAppDelegate: NSObject, NSApplicationDelegate {
 				self.showAgentPanel(focus: wantsFocus)
 			} else {
 				self.hideAgentPanel()
+			}
+		}
+
+		// Show/hide the Meeting notepad window when Meeting Mode visibility changes.
+		meetingVisibilityToken = observe { [weak self] in
+			guard let self else { return }
+			if HexApp.appStore.meeting.isVisible {
+				self.showMeetingPanel()
+			} else {
+				self.hideMeetingPanel()
 			}
 		}
 
@@ -206,6 +219,26 @@ class HexAppDelegate: NSObject, NSApplicationDelegate {
 
 	private func hideAgentPanel() {
 		agentWindow?.orderOut(nil)
+	}
+
+	// MARK: - Meeting Mode (Phase 0)
+
+	private func showMeetingPanel() {
+		if meetingWindow == nil {
+			let meetingStore = HexApp.appStore.scope(state: \.meeting, action: \.meeting)
+			let panel = MeetingPanel.fromView(MeetingView(store: meetingStore))
+			panel.delegate = meetingPanelCloseDelegate
+			meetingWindow = panel
+		}
+		guard let panel = meetingWindow else { return }
+		if !panel.isVisible {
+			panel.center()
+		}
+		panel.orderFrontRegardless()
+	}
+
+	private func hideMeetingPanel() {
+		meetingWindow?.orderOut(nil)
 	}
 
 	@objc private func handleAppModeUpdate() {

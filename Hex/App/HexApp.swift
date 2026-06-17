@@ -16,6 +16,8 @@ struct HexApp: App {
         MenuBarExtra {
             MenuBarCopyLastTranscriptButton()
 
+            MenuBarStartMeetingButton()
+
             Button("Settings…") {
                 appDelegate.presentSettingsView()
             }.keyboardShortcut(",")

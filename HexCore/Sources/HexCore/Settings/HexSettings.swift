@@ -60,6 +60,9 @@ public struct HexSettings: Codable, Equatable, Sendable {
 	/// across turns. The first/primary session keeps the chosen default voice; additional
 	/// sessions get distinct voices. When false, every session uses the default voice.
 	public var agentDistinctSessionVoices: Bool
+	/// When true, the experimental Meeting Mode (diarized long-form dictation with a live
+	/// transcript notepad) is available. Dev/opt-in flag while the feature is built out.
+	public var meetingModeEnabled: Bool
 
 	private mutating func normalizeDoubleTapSettings() {
 		if !doubleTapLockEnabled {
@@ -96,7 +99,8 @@ public struct HexSettings: Codable, Equatable, Sendable {
 		agentAutoSubmit: Bool = true,
 		agentSpeakOutput: Bool = false,
 		agentVoiceIdentifier: String? = nil,
-		agentDistinctSessionVoices: Bool = true
+		agentDistinctSessionVoices: Bool = true,
+		meetingModeEnabled: Bool = false
 	) {
 		self.soundEffectsEnabled = soundEffectsEnabled
 		self.soundEffectsVolume = soundEffectsVolume
@@ -127,6 +131,7 @@ public struct HexSettings: Codable, Equatable, Sendable {
 		self.agentSpeakOutput = agentSpeakOutput
 		self.agentVoiceIdentifier = agentVoiceIdentifier
 		self.agentDistinctSessionVoices = agentDistinctSessionVoices
+		self.meetingModeEnabled = meetingModeEnabled
 		normalizeDoubleTapSettings()
 	}
 
@@ -180,6 +185,7 @@ private enum HexSettingKey: String, CodingKey, CaseIterable {
 	case agentSpeakOutput
 	case agentVoiceIdentifier
 	case agentDistinctSessionVoices
+	case meetingModeEnabled
 }
 
 private struct SettingsField<Value: Codable & Sendable> {
@@ -324,6 +330,7 @@ private enum HexSettingsSchema {
 				try container.encodeIfPresent(value, forKey: key)
 			}
 		).eraseToAny(),
-		SettingsField(.agentDistinctSessionVoices, keyPath: \.agentDistinctSessionVoices, default: defaults.agentDistinctSessionVoices).eraseToAny()
+		SettingsField(.agentDistinctSessionVoices, keyPath: \.agentDistinctSessionVoices, default: defaults.agentDistinctSessionVoices).eraseToAny(),
+		SettingsField(.meetingModeEnabled, keyPath: \.meetingModeEnabled, default: defaults.meetingModeEnabled).eraseToAny()
 	]
 }

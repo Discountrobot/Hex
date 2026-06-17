@@ -31,6 +31,9 @@ struct RecordingClient {
   var stopRecording: @Sendable () async -> URL = { URL(fileURLWithPath: "") }
   var requestMicrophoneAccess: @Sendable () async -> Bool = { false }
   var observeAudioLevel: @Sendable () async -> AsyncStream<Meter> = { AsyncStream { _ in } }
+  /// Forks the live 16 kHz mono mic samples to a consumer (e.g. meeting transcription) while a
+  /// recording is active. Forking stops automatically when the returned stream is cancelled.
+  var observeMicSamples: @Sendable () async -> AsyncStream<[Float]> = { AsyncStream { _ in } }
   var getAvailableInputDevices: @Sendable () async -> [AudioInputDevice] = { [] }
   var getDefaultInputDeviceName: @Sendable () async -> String? = { nil }
   var warmUpRecorder: @Sendable () async -> Void = {}
@@ -48,6 +51,7 @@ extension RecordingClient: DependencyKey {
       stopRecording: { await live.stopRecording() },
       requestMicrophoneAccess: { await live.requestMicrophoneAccess() },
       observeAudioLevel: { await live.observeAudioLevel() },
+      observeMicSamples: { await live.observeMicSamples() },
       getAvailableInputDevices: { await live.getAvailableInputDevices() },
       getDefaultInputDeviceName: { await live.getDefaultInputDeviceName() },
       warmUpRecorder: { await live.warmUpRecorder() },
@@ -1419,6 +1423,25 @@ actor RecordingClientLive {
 
   func observeAudioLevel() -> AsyncStream<Meter> {
     meterStream
+  }
+
+  /// Forks the converted 16 kHz mono samples from the capture engine while a recording is
+  /// active. The fork is installed only for the lifetime of the returned stream — when its
+  /// consumer cancels, the sink is cleared so idle (non-meeting) recordings never buffer.
+  func observeMicSamples() -> AsyncStream<[Float]> {
+    let (stream, continuation) = AsyncStream<[Float]>.makeStream()
+    captureController.setSampleSink { samples in
+      continuation.yield(samples)
+    }
+    continuation.onTermination = { [weak self] _ in
+      guard let self else { return }
+      Task { await self.clearMicSampleSink() }
+    }
+    return stream
+  }
+
+  private func clearMicSampleSink() {
+    captureController.setSampleSink(nil)
   }
 
   func warmUpRecorder() async {

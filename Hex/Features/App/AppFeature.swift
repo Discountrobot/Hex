@@ -27,6 +27,7 @@ struct AppFeature {
 		var settings: SettingsFeature.State = .init()
 		var history: HistoryFeature.State = .init()
 		var agent: AgentFeature.State = .init()
+		var meeting: MeetingFeature.State = .init()
 		var activeTab: ActiveTab = .settings
 		@Shared(.hexSettings) var hexSettings: HexSettings
 		@Shared(.modelBootstrapState) var modelBootstrapState: ModelBootstrapState
@@ -43,6 +44,7 @@ struct AppFeature {
     case settings(SettingsFeature.Action)
     case history(HistoryFeature.Action)
     case agent(AgentFeature.Action)
+    case meeting(MeetingFeature.Action)
     case setActiveTab(ActiveTab)
     case task
     case pasteLastTranscript
@@ -79,6 +81,10 @@ struct AppFeature {
       AgentFeature()
     }
 
+    Scope(state: \.meeting, action: \.meeting) {
+      MeetingFeature()
+    }
+
     Reduce { state, action in
       switch action {
       case .binding:
@@ -86,7 +92,10 @@ struct AppFeature {
 
       case .agent:
         return .none
-        
+
+      case .meeting:
+        return .none
+
       case .task:
         return .merge(
           startPasteLastTranscriptMonitoring(),
@@ -145,6 +154,10 @@ struct AppFeature {
             await send(.checkPermissions)
           }
         }
+
+      case let .settings(.setMeetingModeEnabled(enabled)):
+        // Turning the dev flag off shouldn't leave an active meeting window orphaned/recording.
+        return enabled ? .none : .send(.meeting(.dismiss))
 
       case .settings:
         return .none

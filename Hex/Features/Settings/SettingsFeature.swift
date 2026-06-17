@@ -95,6 +95,7 @@ struct SettingsFeature {
     case setSelectedMicrophoneID(String?)
     case setSoundEffectsEnabled(Bool)
     case setSoundEffectsVolume(Double)
+    case setMeetingModeEnabled(Bool)
 
     // Permission delegation (forwarded to AppFeature)
     case requestMicrophone
@@ -477,6 +478,10 @@ struct SettingsFeature {
 
       case let .setCopyToClipboard(enabled):
         state.$hexSettings.withLock { $0.copyToClipboard = enabled }
+        return .none
+
+      case let .setMeetingModeEnabled(enabled):
+        state.$hexSettings.withLock { $0.meetingModeEnabled = enabled }
         return .none
 
       case let .setRecordingAudioBehavior(behavior):

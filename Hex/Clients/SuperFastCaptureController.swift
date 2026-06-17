@@ -115,6 +115,10 @@ final class SuperFastCaptureController {
   private var configurationChangeObserver: NSObjectProtocol?
   private var activeRecording: ActiveRecording?
   private var keepWarmBuffer = false
+  /// Optional sink that receives a copy of each converted 16 kHz mono sample block while a
+  /// recording is active (used to fork audio to live meeting transcription). Mutated and read
+  /// only on `processingQueue` via `setSampleSink(_:)`, so it never races the audio callback.
+  private var onSamples16k: (@Sendable ([Float]) -> Void)?
   private var lastProcessedBufferAt: Date?
   private var recentCallbackIntervals: [TimeInterval] = []
   private var recentBufferDurations: [TimeInterval] = []
@@ -318,6 +322,15 @@ final class SuperFastCaptureController {
     }
   }
 
+  /// Install (or clear with nil) a sink that receives a Sendable copy of each converted
+  /// 16 kHz mono sample block while a recording is active. Applied on `processingQueue` so it
+  /// never races the audio processing in `process(_:)`.
+  func setSampleSink(_ sink: (@Sendable ([Float]) -> Void)?) {
+    processingQueue.async { [weak self] in
+      self?.onSamples16k = sink
+    }
+  }
+
   private func enqueue(_ buffer: AVAudioPCMBuffer) {
     guard let copy = clone(buffer) else { return }
     processingQueue.async { [weak self] in
@@ -347,6 +360,11 @@ final class SuperFastCaptureController {
 
     if activeRecording != nil {
       meterContinuation.yield(meter(for: samples, count: sampleCount))
+      if let sink = onSamples16k {
+        // Copy the converted 16 kHz mono frames into a Sendable Array for the fork consumer.
+        // Copying decouples it from the buffer reused by the WAV write below (no escape race).
+        sink(Array(UnsafeBufferPointer(start: samples, count: sampleCount)))
+      }
     }
 
     guard var recording = activeRecording else { return }

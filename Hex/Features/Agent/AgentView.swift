@@ -23,7 +23,13 @@ struct AgentView: View {
       if hasOutput {
         outputCard
       }
-      inputCard
+      // Once the hook has timed out the reply can't be delivered, so the input field is
+      // replaced by a brief notice — only dismissing the stale card remains.
+      if store.isExpired {
+        expiredCard
+      } else {
+        inputCard
+      }
     }
     // Focus the reply field only when you've engaged the card (tapping the selector / clicking
     // the field) — never on a passive hook appearance, so it can't steal keystrokes.
@@ -198,6 +204,7 @@ struct AgentView: View {
         optionRow(option, multiSelect: q.multiSelect)
       }
     }
+    .disabled(store.isExpired)
     if q.multiSelect {
       Text("Select one or more, then Send.")
         .font(.caption).foregroundStyle(.tertiary)
@@ -259,6 +266,7 @@ struct AgentView: View {
       Button("Deny", role: .destructive) { store.send(.respondPermission(allow: false)) }
         .buttonStyle(.bordered)
     }
+    .disabled(store.isExpired)
   }
 
   // MARK: Input card (separate, below)
@@ -306,6 +314,26 @@ struct AgentView: View {
         hint("Send", key: "⏎") { store.send(.send) }
           .disabled(store.draftReply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
       }
+    }
+    .padding(12)
+    .modifier(FloatingCard())
+  }
+
+  // MARK: Expired card (replaces the input card once the hook has timed out)
+
+  private var expiredCard: some View {
+    HStack(spacing: 10) {
+      Image(systemName: "clock.badge.xmark")
+        .foregroundStyle(.secondary)
+      VStack(alignment: .leading, spacing: 2) {
+        Text("Session timed out")
+          .font(.callout.weight(.medium))
+        Text("Claude is no longer waiting — reply in the terminal instead.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+      Spacer(minLength: 0)
+      hint("Dismiss", key: "esc") { store.send(.dismiss) }
     }
     .padding(12)
     .modifier(FloatingCard())

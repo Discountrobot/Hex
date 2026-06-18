@@ -78,6 +78,10 @@ struct AgentFeature {
     /// kept for the card's lifetime — so a session keeps its distinct voice even after a
     /// sibling is answered and it's alone.
     var voice: String?
+    /// True once this card's hook has timed out — the script deletes its payload file when it
+    /// gives up polling (~570s), so the in-band answer channel is gone. We drop the reply field
+    /// rather than let a reply land in the void; only Dismiss remains.
+    var isExpired: Bool = false
 
     /// A session blocks on a single hook at a time, so the session id is the natural identity;
     /// fall back to the payload path for the rare hook that arrived without one.
@@ -132,6 +136,8 @@ struct AgentFeature {
     var draftReply: String { current?.draftReply ?? "" }
     var selectedOptions: Set<String> { current?.selectedOptions ?? [] }
     var autoSendProgress: Double? { current?.autoSendProgress }
+    /// The visible card's hook has timed out and can no longer be answered.
+    var isExpired: Bool { current?.isExpired ?? false }
 
     // MARK: Header
 
@@ -170,6 +176,7 @@ struct AgentFeature {
     case show(ShowPayload)
     case selectAgent(String)              // switch the window to another blocked session
     case promptLoaded(AgentRequest.ID, AgentPrompt)
+    case hookExpired(AgentRequest.ID)     // the card's hook timed out; can no longer be answered
     case revealPanel
     case dismiss
     case draftChanged(String)
@@ -183,7 +190,7 @@ struct AgentFeature {
     case sent
   }
 
-  enum CancelID { case autoSend }
+  enum CancelID { case autoSend, liveness }
 
   @Dependency(\.soundEffects) var soundEffect
   @Dependency(\.agentTranscript) var agentTranscript
@@ -252,6 +259,15 @@ struct AgentFeature {
         // Only the front card speaks/reveals; a preloaded waiting card just caches.
         guard id == state.currentID else { return .none }
         return speakThenReveal(state)
+
+      case let .hookExpired(id):
+        guard state.requests[id: id] != nil, state.requests[id: id]?.isExpired == false else {
+          return .none
+        }
+        state.requests[id: id]?.isExpired = true
+        // Any pending auto-send would now write into a dead hook — drop it.
+        state.requests[id: id]?.autoSendProgress = nil
+        return .cancel(id: CancelID.autoSend)
 
       case .revealPanel:
         // Ignore a reveal that arrives after the prompt was answered or dismissed.
@@ -349,6 +365,9 @@ struct AgentFeature {
       case let .respondPermission(allow):
         guard let id = state.currentID,
               let payloadPath = state.requests[id: id]?.payloadPath else { return .none }
+        guard FileManager.default.fileExists(atPath: payloadPath) else {
+          return .send(.hookExpired(id))
+        }
         state.requests.remove(id: id)
         return .merge(
           .cancel(id: CancelID.autoSend),
@@ -375,6 +394,11 @@ struct AgentFeature {
             .run { _ in await speechSynthesizer.stop() },
             advance(&state)
           )
+        }
+        // The hook may have timed out while the card sat idle (its payload file is gone the
+        // moment the script gives up). Surface the dead state instead of writing into the void.
+        guard FileManager.default.fileExists(atPath: payloadPath) else {
+          return .send(.hookExpired(id))
         }
         state.requests.remove(id: id)
         return .merge(
@@ -404,7 +428,7 @@ struct AgentFeature {
     guard let request = state.requests[id: id] else {
       state.isVisible = false
       state.pendingReveal = false
-      return .none
+      return .cancel(id: CancelID.liveness)
     }
     if !state.isVisible {
       // With read-aloud on, keep the panel hidden until the audio is ready so the window
@@ -414,14 +438,35 @@ struct AgentFeature {
     }
     let payloadPath = request.payloadPath
     let transcriptPath = request.context.transcriptPath
+    // Watch the now-visible card's hook for the rest of its life; expired cards drop their reply field.
+    let liveness = monitorLiveness(id, payloadPath: payloadPath)
     guard payloadPath != nil || transcriptPath != nil else {
-      return speakThenReveal(state)
+      return .merge(liveness, speakThenReveal(state))
     }
     let fallback = request.prompt
-    return .run { send in
+    return .merge(liveness, .run { send in
       let prompt = (try? await agentTranscript.latestPrompt(payloadPath, transcriptPath)) ?? fallback
       await send(.promptLoaded(id, prompt))
+    })
+  }
+
+  /// Polls the visible card's payload file — the hook's liveness beacon. The script writes it
+  /// before opening the deeplink and deletes it the instant it stops polling (answered, or
+  /// timed out ~570s). When it vanishes the hook is gone, so we mark the card expired. Probing
+  /// the file (not a wall clock) is what makes this correct across system sleep: the hook's
+  /// poll loop is suspended while the Mac sleeps, so the file outlives a naive timer.
+  private func monitorLiveness(_ id: AgentRequest.ID, payloadPath: String?) -> Effect<Action> {
+    guard let payloadPath else { return .cancel(id: CancelID.liveness) }
+    return .run { send in
+      while !Task.isCancelled {
+        try await Task.sleep(for: .seconds(2))
+        if !FileManager.default.fileExists(atPath: payloadPath) {
+          await send(.hookExpired(id))
+          return
+        }
+      }
     }
+    .cancellable(id: CancelID.liveness, cancelInFlight: true)
   }
 
   /// Moves to the next queued card (FIFO), or tears the panel down when the queue empties.
@@ -430,7 +475,7 @@ struct AgentFeature {
       state.currentID = nil
       state.isVisible = false
       state.pendingReveal = false
-      return .none
+      return .cancel(id: CancelID.liveness)
     }
     return present(&state, id: next)
   }

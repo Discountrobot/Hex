@@ -14,10 +14,15 @@ enum SpeakerAlignment {
   /// Speaker id used when there is no diarization to attribute against (renders as unattributed).
   static let unknownSpeakerId = ""
 
-  /// A silence of at least this many seconds within one speaker's turn starts a new line, so long
-  /// turns read as natural paragraphs instead of one unbroken block. (Token timings are quantized
-  /// to 80 ms, so this is roughly a typical sentence-boundary pause.)
-  static let pauseLineBreakSeconds: Double = 0.6
+  /// A silence of at least this many seconds within one speaker's turn always starts a new line,
+  /// so long turns read as paragraphs instead of one unbroken block.
+  static let pauseLineBreakSeconds: Double = 0.5
+
+  /// At a sentence boundary (the line so far ends with . ! ? 。), an even shorter breath of this
+  /// many seconds is enough to start a new line — most natural divisions land here.
+  static let sentencePauseSeconds: Double = 0.25
+
+  private static let sentenceEnders: Set<Character> = [".", "!", "?", "。"]
 
   /// Assign each ASR token to the diarization speaker whose interval best matches the token's
   /// midpoint, then merge consecutive same-speaker tokens into contiguous attributed turns.
@@ -62,8 +67,10 @@ enum SpeakerAlignment {
       let id = speaker(at: midpoint)
       if let lastIndex = turns.indices.last, turns[lastIndex].speakerId == id {
         let gap = token.start - turns[lastIndex].endSeconds
-        if gap >= pauseLineBreakSeconds {
-          // A noticeable pause becomes a line break; drop the token's own leading space first.
+        let endsSentence = turns[lastIndex].text.last(where: { !$0.isWhitespace }).map(sentenceEnders.contains) ?? false
+        // Break on a clear pause, or at a sentence boundary with even a short breath.
+        if gap >= pauseLineBreakSeconds || (endsSentence && gap >= sentencePauseSeconds) {
+          // Start a new line; drop the token's own leading space first.
           turns[lastIndex].text += "\n" + String(token.text.drop(while: { $0.isWhitespace }))
         } else {
           // SentencePiece tokens carry their own leading spaces, so plain concatenation rebuilds words.

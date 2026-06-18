@@ -75,6 +75,11 @@ private actor DiarizationEngine {
   private var manager: DiarizerManager?
   private let logger = HexLog.meeting
 
+  /// Speaker-clustering threshold (FluidAudio range 0.5–0.9). Lower = more speakers / less merging.
+  /// Below the 0.7 default because mic-captured room audio (e.g. video played over speakers) tends
+  /// to merge distinct voices; tune here if speakers are over- or under-split.
+  private static let clusteringThreshold: Float = 0.6
+
   func ensureLoaded(progress: @escaping @Sendable (Double) -> Void) async throws {
     if manager != nil {
       progress(1)
@@ -100,7 +105,7 @@ private actor DiarizationEngine {
 
     let t0 = Date()
     let models = try await DiarizerModels.downloadIfNeeded()
-    let manager = DiarizerManager()      // default config
+    let manager = DiarizerManager(config: DiarizerConfig(clusteringThreshold: Self.clusteringThreshold))
     manager.initialize(models: models)   // synchronous, non-throwing — do NOT `try await`
     self.manager = manager
     progress(1)

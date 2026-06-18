@@ -258,7 +258,10 @@ audio is retained (diarization/replay need it); add a retention setting.
 
 ## 10. Suggested phasing
 
-- **Phase 0 — Spike (de-risk):** two threads, behind a hidden dev flag:
+> **Status:** Phase 0 ✅ shipped (PR Discountrobot/Hex#3 → `agent-sandbox`). Phase 1 ✅ implemented
+> (branch `feat/meeting-dictation-phase1`, stacked on #3). Phases 2–4 are next.
+
+- **Phase 0 — Spike (de-risk):** ✅ two threads, behind a hidden dev flag:
   - *Diarization:* run `DiarizerManager` on a saved recording, dump `TimedSpeakerSegment`s to a
     log; confirm the diarizer models download into the container and quality is acceptable;
     confirm batch ASR timestamp availability (for §4.2 alignment).
@@ -266,9 +269,11 @@ audio is retained (diarization/replay need it); add a retention setting.
     `transcriptionUpdates` into a minimal always-visible **notepad window** — this is the req #4
     de-risk (proves we can show live text + a clear "recording" signal) and gives us something
     tangible to look at early.
-- **Phase 1 — Diarized transcript:** Meeting recording mode + ASR-timestamp plumbing + alignment
-  → a speaker-attributed transcript (`Speaker 1/2/…`), stored as a `MeetingNote`, shown in a basic
-  view. No memory, no LLM yet.
+- **Phase 1 — Diarized transcript:** ✅ canonical batch transcription (`ASRResult.tokenTimings`)
+  aligned to diarization segments (`SpeakerAlignment`) → a speaker-attributed transcript
+  (`Speaker 1/2/…`) shown in the notepad and persisted as a `MeetingNote` (`meeting_notes.json`,
+  capped, audio kept under `Application Support/Meetings/`). No memory, no LLM yet. A meeting-notes
+  *browser* UI is still TODO (notes are saved but only the just-finished one is shown).
 - **Phase 2 — Speaker memory:** Speaker Directory persistence, `initializeKnownSpeakers` seeding,
   cross-meeting recognition, naming/confirm UI, merge/delete.
 - **Phase 3 — Summarization:** chosen `claude -p` transport, prompt design, summary + action items

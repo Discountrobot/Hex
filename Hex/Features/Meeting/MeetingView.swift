@@ -3,7 +3,9 @@
 //  Hex
 //
 //  The live meeting notepad: a recording indicator, elapsed time, and the streaming transcript.
-//  After stopping it shows the final transcript plus the diarization (who-spoke-when) summary.
+//  After stopping, it replaces the running text with the speaker-attributed transcript
+//  ("Speaker 1: …", "Speaker 2: …") produced by aligning the canonical transcription with
+//  diarization.
 //
 
 import ComposableArchitecture
@@ -22,10 +24,6 @@ struct MeetingView: View {
       header
       Divider()
       transcript
-      if !store.diarization.isEmpty {
-        Divider()
-        diarizationSummary
-      }
       controls
     }
     .padding(16)
@@ -52,14 +50,36 @@ struct MeetingView: View {
     }
   }
 
+  @ViewBuilder
   private var transcript: some View {
     ScrollView {
-      Text(displayText.isEmpty ? "Listening…" : displayText)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .foregroundStyle(displayText.isEmpty ? .secondary : .primary)
-        .textSelection(.enabled)
+      if !store.segments.isEmpty {
+        attributedTranscript
+      } else {
+        Text(displayText.isEmpty ? "Listening…" : displayText)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .foregroundStyle(displayText.isEmpty ? .secondary : .primary)
+          .textSelection(.enabled)
+      }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+  }
+
+  /// The speaker-attributed transcript, one block per turn, color-coded by speaker.
+  private var attributedTranscript: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      ForEach(store.segments) { segment in
+        VStack(alignment: .leading, spacing: 2) {
+          Text(segment.speakerId.isEmpty ? "Transcript" : "Speaker \(segment.speakerId)")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(segment.speakerId.isEmpty ? Color.secondary : speakerColor(segment.speakerId))
+          Text(segment.text)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .textSelection(.enabled)
+        }
+      }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
   }
 
   /// While recording we show the running live transcript; once finished, the clean final one.
@@ -70,23 +90,11 @@ struct MeetingView: View {
     return store.liveTranscript
   }
 
-  private var diarizationSummary: some View {
-    VStack(alignment: .leading, spacing: 2) {
-      Text("Speakers")
-        .font(.caption.weight(.semibold))
-        .foregroundStyle(.secondary)
-      ForEach(Array(store.diarization.prefix(10).enumerated()), id: \.offset) { _, seg in
-        Text(String(format: "Speaker %@   %.1f–%.1fs", seg.speakerId, seg.startSeconds, seg.endSeconds))
-          .font(.system(.caption, design: .monospaced))
-          .foregroundStyle(.secondary)
-      }
-      if store.diarization.count > 10 {
-        Text("… \(store.diarization.count - 10) more (full list in Console under category “Meeting”)")
-          .font(.caption2)
-          .foregroundStyle(.tertiary)
-      }
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
+  /// Deterministic, distinct color per diarization speaker id ("1", "2", …).
+  private func speakerColor(_ id: String) -> Color {
+    let palette: [Color] = [.blue, .green, .orange, .purple, .pink, .teal, .indigo, .red]
+    let index = (Int(id) ?? abs(id.hashValue)) % palette.count
+    return palette[index]
   }
 
   private var controls: some View {

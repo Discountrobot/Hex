@@ -14,7 +14,7 @@
 import AVFoundation
 import Dependencies
 import DependenciesMacros
-import FluidAudioTTS
+import FluidAudio
 import HexCore
 
 private let speechLogger = HexLog.app
@@ -55,10 +55,12 @@ extension DependencyValues {
 
 /// Maps the persisted `agentVoiceIdentifier` to/from Kokoro voice names.
 enum KokoroVoice {
-    /// Curated, supported subset (FluidAudio's TTS is beta and American English only).
-    static let voices: [String] = TtsConstants.availableVoices.filter {
-        $0.hasPrefix("af_") || $0.hasPrefix("am_")
-    }
+    /// The ANE Kokoro model repo ships **only `af_heart`** — every other Kokoro
+    /// voice 404s on download for this backend (verified against the HF repo,
+    /// `FluidInference/kokoro-82m-coreml/ANE`). So the ANE backend is single-voice;
+    /// listing more would just fail at synthesis. The legacy mono backend offered
+    /// the full `af_`/`am_` catalog — that variety is the cost of the ANE quality.
+    static let voices: [String] = ["af_heart"]
 
     static let defaultVoice = TtsConstants.recommendedVoice
 
@@ -82,9 +84,16 @@ enum KokoroVoice {
 // MARK: - Synthesis + playback
 
 private actor KokoroSpeechLive {
+    /// Kokoro's per-stage compute placement. `.default` runs the RNN stages on the
+    /// Apple Neural Engine and the iSTFT/noise on the GPU — the placement FluidAudio
+    /// designed for macOS 26 / Apple Silicon (see #667). On macOS 15 this garbled
+    /// the audio (and pure-CPU placements crashed `libBNNS`); macOS 26 fixes the ANE
+    /// path. If garble returns on some hardware, `.cpuAndGpu` is the fallback lever.
+    private static let computeUnits: KokoroAneComputeUnits = .default
+
     /// Shared init task so concurrent callers (settings preview + agent panel) join
     /// one download instead of racing to start two.
-    private var managerTask: Task<TtSManager, Error>?
+    private var managerTask: Task<KokoroAneManager, Error>?
     private var player: AVAudioPlayer?
     /// Bumped on every speak/stop so a slow synthesis can't play stale audio.
     private var generation = 0
@@ -105,7 +114,7 @@ private actor KokoroSpeechLive {
             let manager = try await readyManager()
             let wav = try await manager.synthesize(text: trimmed, voice: voice)
             guard requested == generation else { return } // superseded while synthesizing
-            let player = try AVAudioPlayer(data: wav)
+            let player = try AVAudioPlayer(data: wav, fileTypeHint: AVFileType.wav.rawValue)
             self.player = player
             player.play()
         } catch {
@@ -119,21 +128,28 @@ private actor KokoroSpeechLive {
         player = nil
     }
 
-    private func readyManager(progress: (@Sendable (Double) -> Void)? = nil) async throws -> TtSManager {
+    private func readyManager(progress: (@Sendable (Double) -> Void)? = nil) async throws -> KokoroAneManager {
         if let managerTask {
             return try await managerTask.value
         }
         speechLogger.notice("Initializing Kokoro TTS (downloads the model on first use)")
-        let task = Task<TtSManager, Error> {
-            let models = try await TtsModels.download(progressHandler: { progress?($0) })
-            let manager = TtSManager()
-            try await manager.initialize(models: models)
+        // The ANE backend exposes no granular download progress, so report a coarse
+        // 0 → 1 around initialization rather than fabricating intermediate fractions.
+        progress?(0)
+        let units = Self.computeUnits
+        let task = Task<KokoroAneManager, Error> {
+            // Downloads the `kokoro-82m-coreml/ANE` variant on first use and caches
+            // it under Application Support.
+            let manager = KokoroAneManager(variant: .english, computeUnits: units)
+            try await manager.initialize()
             speechLogger.notice("Kokoro TTS ready")
             return manager
         }
         managerTask = task
         do {
-            return try await task.value
+            let manager = try await task.value
+            progress?(1)
+            return manager
         } catch {
             managerTask = nil // allow retry after a failed download
             throw error

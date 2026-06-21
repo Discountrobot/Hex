@@ -23,44 +23,17 @@
 
 import ComposableArchitecture
 import Dependencies
-import DependenciesMacros
 import Foundation
 import HexCore
 
 private let pluginLogger = HexLog.app
 
-@DependencyClient
-struct ClaudePluginClient {
-  /// Writes/refreshes the generated scripts in Hex's container. Cheap; call on launch and
-  /// whenever the Agent Plugins settings open. Idempotent.
-  var prepare: @Sendable () async -> Void = {}
-  /// The one-line command the user pastes into a terminal to register the hooks.
-  var installCommand: @Sendable () async -> String = { "" }
-  /// The one-line command the user pastes to remove the hooks.
-  var uninstallCommand: @Sendable () async -> String = { "" }
-}
-
-extension ClaudePluginClient: DependencyKey {
-  static var liveValue: Self {
-    let live = ClaudePluginClientLive()
-    return .init(
-      prepare: { live.prepare() },
-      installCommand: { live.installCommand },
-      uninstallCommand: { live.uninstallCommand }
-    )
-  }
-}
-
-extension DependencyValues {
-  var claudePlugin: ClaudePluginClient {
-    get { self[ClaudePluginClient.self] }
-    set { self[ClaudePluginClient.self] = newValue }
-  }
-}
-
 // MARK: - Live implementation
 
-struct ClaudePluginClientLive {
+/// Registered with the app via `AgentIntegrationsClient`. Not exposed as its own
+/// dependency — features should go through the registry so they stay decoupled from
+/// the list of installed integrations.
+struct ClaudePluginClientLive: AgentIntegrationProvider {
   /// Hook events to register, with their matcher. Empty matcher == match all.
   private let events: [(event: String, matcher: String)] = [
     ("Stop", ""),
@@ -88,6 +61,20 @@ struct ClaudePluginClientLive {
 
   var installCommand: String { "sh '\(installScriptURL.path)'" }
   var uninstallCommand: String { "sh '\(uninstallScriptURL.path)'" }
+
+  // MARK: AgentIntegrationProvider
+
+  var descriptor: AgentIntegration {
+    AgentIntegration(
+      id: "claude",
+      displayName: "Claude Code",
+      icon: .asset("IntegrationClaude"),
+      installCaption: "Run this once in a terminal to register the Hex hooks with Claude Code:",
+      uninstallCaption: "Run this to remove the hooks, then restart your claude sessions:",
+      installCommand: installCommand,
+      uninstallCommand: uninstallCommand
+    )
+  }
 
   // MARK: Prepare
 

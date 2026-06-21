@@ -82,7 +82,7 @@ struct AgentPluginsSectionView: View {
 						set: { store.send(.setAgentDistinctSessionVoices($0)) }
 					)
 				)
-				Text("Give each concurrent Claude session its own consistent voice so you can tell projects apart by ear. Your first session keeps the voice above; others get distinct voices. Enabling this preloads the model.")
+				Text("Give each concurrent agent session its own consistent voice so you can tell projects apart by ear. Your first session keeps the voice above; others get distinct voices. Enabling this preloads the model.")
 			} icon: {
 				Image(systemName: "person.2.wave.2")
 			}
@@ -92,25 +92,10 @@ struct AgentPluginsSectionView: View {
 		}
 
 		Section {
-			VStack(alignment: .leading, spacing: 10) {
-				Label {
-					Text("Claude Code").font(.body.weight(.medium))
-				} icon: {
-					brandIcon("IntegrationClaude")
-				}
-				Text("Run this once in a terminal to register the Hex hooks with Claude Code:")
-					.settingsCaption()
-				commandRow(store.agentInstallCommand)
-
-				DisclosureGroup("Remove integration") {
-					VStack(alignment: .leading, spacing: 6) {
-						Text("Run this to remove the hooks, then restart your claude sessions:")
-							.settingsCaption()
-						commandRow(store.agentUninstallCommand)
-					}
-					.padding(.top, 4)
-				}
-				.font(.caption)
+			// One row per registered integration. The set of integrations lives in
+			// AgentIntegrationsClient.liveValue — this view is agnostic.
+			ForEach(store.integrations) { integration in
+				integrationRow(integration)
 			}
 
 			// Codex support is planned — shown disabled to mirror the competitor UI.
@@ -127,13 +112,51 @@ struct AgentPluginsSectionView: View {
 		} header: {
 			Text("Integrations")
 		} footer: {
-			Text("Hex is sandboxed and can't edit ~/.claude itself, so you run a one-time command. Re-run the install command if an app update changes the integration.")
+			Text("Hex is sandboxed and can't write outside its container, so each integration needs a one-time install command. Re-run the install command if an app update changes the integration.")
 				.settingsCaption()
 		}
 		.enableInjection()
 	}
 
-	/// A bundled brand icon (Claude / OpenAI favicons, vendored under Assets.xcassets).
+	/// One Integrations-section row for an AgentIntegration descriptor. No per-provider
+	/// branching here — everything that varies lives in the descriptor.
+	@ViewBuilder
+	private func integrationRow(_ integration: AgentIntegration) -> some View {
+		VStack(alignment: .leading, spacing: 10) {
+			Label {
+				Text(integration.displayName).font(.body.weight(.medium))
+			} icon: {
+				integrationIcon(integration.icon)
+			}
+			Text(integration.installCaption).settingsCaption()
+			commandRow(integration.installCommand)
+
+			DisclosureGroup("Remove integration") {
+				VStack(alignment: .leading, spacing: 6) {
+					Text(integration.uninstallCaption).settingsCaption()
+					commandRow(integration.uninstallCommand)
+				}
+				.padding(.top, 4)
+			}
+			.font(.caption)
+		}
+	}
+
+	/// Renders either a vendored brand asset or an SF Symbol, depending on what the
+	/// integration's descriptor declares.
+	@ViewBuilder
+	private func integrationIcon(_ icon: AgentIntegrationIcon) -> some View {
+		switch icon {
+		case let .asset(name):
+			brandIcon(name)
+		case let .symbol(name):
+			Image(systemName: name)
+				.font(.system(size: 13, weight: .semibold))
+				.frame(width: 16, height: 16)
+		}
+	}
+
+	/// A bundled brand icon (favicons vendored under Assets.xcassets).
 	@ViewBuilder
 	private func brandIcon(_ assetName: String) -> some View {
 		Image(assetName)

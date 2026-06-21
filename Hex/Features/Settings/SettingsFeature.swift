@@ -59,9 +59,9 @@ struct SettingsFeature {
     var modelDownload = ModelDownloadFeature.State()
     var shouldFlashModelSection = false
 
-    // Agent Plugins
-    var agentInstallCommand = ""
-    var agentUninstallCommand = ""
+    // Agent Plugins — list of installed integrations. Populated by
+    // AgentIntegrationsClient; the view renders one row per entry.
+    var integrations: [AgentIntegration] = []
     /// Non-nil while the Kokoro TTS model is downloading (0...1). Drives the internal
     /// download guard; no longer shown as a bar (see `isPreviewingVoice`).
     var kokoroDownloadProgress: Double?
@@ -122,7 +122,7 @@ struct SettingsFeature {
     case prepareKokoro
     case kokoroPrepareProgress(Double)
     case kokoroPrepared(success: Bool)
-    case agentCommandsLoaded(install: String, uninstall: String)
+    case integrationsLoaded([AgentIntegration])
 
     // Modifier configuration
     case setModifierSide(Modifier.Kind, Modifier.Side)
@@ -143,7 +143,7 @@ struct SettingsFeature {
   @Dependency(\.recording) var recording
   @Dependency(\.soundEffects) var soundEffects
   @Dependency(\.transcriptPersistence) var transcriptPersistence
-  @Dependency(\.claudePlugin) var claudePlugin
+  @Dependency(\.agentIntegrations) var agentIntegrations
   @Dependency(\.speechSynthesizer) var speechSynthesizer
 
   private func deleteAudioEffect(for transcripts: [Transcript]) -> Effect<Action> {
@@ -283,11 +283,9 @@ struct SettingsFeature {
           await send(.loadAvailableInputDevices)
           // Refresh the generated agent scripts in our container, then surface the
           // copy-paste install/uninstall commands for the Settings UI.
-          await claudePlugin.prepare()
-          await send(.agentCommandsLoaded(
-            install: await claudePlugin.installCommand(),
-            uninstall: await claudePlugin.uninstallCommand()
-          ))
+          // Refresh every registered agent integration's container scripts and surface
+          // their install/uninstall commands for the Settings UI.
+          await send(.integrationsLoaded(await agentIntegrations.prepareAll()))
 
           // Listen for device connection/disconnection notifications
           // Using a simpler debounced approach with a single task
@@ -600,9 +598,9 @@ struct SettingsFeature {
 
       case let .toggleAgentPluginsEnabled(enabled):
         state.$hexSettings.withLock { $0.agentPluginsEnabled = enabled }
-        // Re-sync the on-disk sentinel so the hook short-circuits immediately when disabled
-        // (and resumes when re-enabled), without re-running the install command.
-        return .run { _ in await claudePlugin.prepare() }
+        // Re-sync each integration's on-disk sentinel so they short-circuit immediately when
+        // disabled (and resume when re-enabled), without re-running any install command.
+        return .run { _ in _ = await agentIntegrations.prepareAll() }
 
       case let .setAgentAutoSubmit(enabled):
         state.$hexSettings.withLock { $0.agentAutoSubmit = enabled }
@@ -662,9 +660,8 @@ struct SettingsFeature {
         }
         return .send(.previewAgentVoice)
 
-      case let .agentCommandsLoaded(install, uninstall):
-        state.agentInstallCommand = install
-        state.agentUninstallCommand = uninstall
+      case let .integrationsLoaded(integrations):
+        state.integrations = integrations
         return .none
 
       }

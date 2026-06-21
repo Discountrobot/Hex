@@ -2,14 +2,14 @@
 //  AgentFeature.swift
 //  Hex
 //
-//  Drives the Agent Plugins voice window. Shows what Claude Code is presenting (a plain
+//  Drives the Agent Plugins voice window. Shows what the agent is presenting (a plain
 //  message, a multiple-choice question, or a permission request) and lets the user answer by
 //  voice / typing / tapping an option, then answers the BLOCKED hook in-band: Hex writes the
-//  complete hook-output JSON to `<payload>.response`, which the hook script relays to Claude
-//  Code on stdout. No app focusing, no synthetic keystrokes — the answer can never land in the
+//  complete hook-output JSON to `<payload>.response`, which the integration relays back to
+//  the agent. No app focusing, no synthetic keystrokes — the answer can never land in the
 //  wrong window, and the window only ever *responds* to a session that is blocked on a hook.
 //
-//  Multiple Claude sessions can be blocked at once — each on its own hook — so the feature
+//  Multiple agent sessions can be blocked at once — each on its own hook — so the feature
 //  holds a FIFO queue of `AgentRequest`s (one card per active project). The oldest is shown;
 //  newcomers wait their turn; answering or dismissing advances to the next. Nothing is ever
 //  silently abandoned: every teardown (answer, dismiss, supersede, even app quit) writes a
@@ -43,7 +43,7 @@ struct AgentFeature {
     var branch: String?
   }
 
-  /// The identity of one Claude session: where it lives and the project it belongs to.
+  /// The identity of one agent session: where it lives and the project it belongs to.
   struct SessionContext: Equatable {
     var cwd: String? = nil
     var transcriptPath: String? = nil
@@ -60,7 +60,7 @@ struct AgentFeature {
     }
   }
 
-  /// One card in the window — a Claude hook blocked polling for our response file. Each owns
+  /// One card in the window — an agent hook blocked polling for our response file. Each owns
   /// its own draft reply and selection, so flipping between cards never loses what you typed.
   struct AgentRequest: Equatable, Identifiable {
     /// The hook's payload file; the in-band channel we answer through. (Optional only to guard

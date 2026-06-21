@@ -58,7 +58,7 @@ struct AppFeature {
   @Dependency(\.pasteboard) var pasteboard
   @Dependency(\.transcription) var transcription
   @Dependency(\.permissions) var permissions
-  @Dependency(\.claudePlugin) var claudePlugin
+  @Dependency(\.agentIntegrations) var agentIntegrations
 
   var body: some ReducerOf<Self> {
     BindingReducer()
@@ -92,8 +92,10 @@ struct AppFeature {
           startPasteLastTranscriptMonitoring(),
           ensureSelectedModelReadiness(),
           startPermissionMonitoring(),
-          // Keep the generated Claude hook + install scripts current in our container.
-          .run { _ in await claudePlugin.prepare() }
+          // Refresh every registered agent integration's container scripts. The set of
+          // integrations is defined in AgentIntegrationsClient.liveValue — AppFeature is
+          // agnostic to which ones exist.
+          .run { _ in _ = await agentIntegrations.prepareAll() }
         )
         
       case .pasteLastTranscript:

@@ -16,7 +16,7 @@ import HexCore
 
 private let agentLogger = HexLog.app
 
-/// What Claude Code is presenting to the user.
+/// What the agent is presenting to the user.
 enum AgentPrompt: Equatable, Sendable {
   case message(String)              // plain assistant text (markdown)
   case question(AgentQuestion)      // AskUserQuestion multiple choice

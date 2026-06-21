@@ -148,9 +148,9 @@ class HexAppDelegate: NSObject, NSApplicationDelegate {
 		self.settingsWindow = settingsWindow
 	}
 
-	// MARK: - Agent Plugins (Claude Code integration)
+	// MARK: - Agent Plugins
 
-	/// Handles `hex://agent-update?…` deeplinks fired by the Claude Code hook script.
+	/// Handles `hex://agent-update?…` deeplinks fired by an installed agent integration.
 	func application(_: NSApplication, open urls: [URL]) {
 		for url in urls where url.scheme == "hex" {
 			handleHexURL(url)
@@ -230,8 +230,8 @@ class HexAppDelegate: NSObject, NSApplicationDelegate {
 	}
 
 	func applicationWillTerminate(_: Notification) {
-		// Release every still-blocked agent hook so quitting Hex never leaves a Claude
-		// session hanging on its 600s timeout. An empty response yields to the terminal UI.
+		// Release every still-blocked agent hook so quitting Hex never leaves an agent
+		// session hanging on its hook timeout. An empty response yields to the terminal UI.
 		for request in HexApp.appStore.agent.requests {
 			if let payloadPath = request.payloadPath {
 				AgentHookResponder.respond(payloadPath: payloadPath, json: nil)

@@ -2,12 +2,13 @@
 //  AgentHookResponder.swift
 //  Hex
 //
-//  Answers a blocked Claude Code hook in-band. The hook script polls for
-//  `<payload>.response`; we write the complete hook-output JSON there and the script
-//  relays it on stdout. An empty file means "user dismissed — yield to the terminal UI".
+//  Answers a blocked agent hook in-band. The integration script polls for
+//  `<payload>.response`; we write the complete hook-output JSON there and the integration
+//  relays it back to the agent. An empty file means "user dismissed — yield to the terminal UI".
 //
-//  Output shapes (mirrors what superwhisper's agent-hook emits):
-//  - Stop:               {"decision":"block","reason":"<user's text>"} — Claude Code
+//  Output shapes use Claude Code's hook-output dialect as the lingua franca (other
+//  integrations — e.g. pi — translate it into their own conventions on the agent side):
+//  - Stop:               {"decision":"block","reason":"<user's text>"} — the agent
 //                        treats the reason as the user's next instruction.
 //  - AskUserQuestion:    PreToolUse hookSpecificOutput, permissionDecision=allow,
 //                        updatedInput with an `answers` map keyed by question text.
@@ -60,7 +61,7 @@ enum AgentHookResponder {
       ])
     case .message, .permission:
       // Stop hook (or anything free-text): a blocked Stop's reason is delivered to
-      // Claude as the user's follow-up instruction.
+      // the agent as the user's follow-up instruction.
       respond(payloadPath: payloadPath, json: [
         "decision": "block",
         "reason": answer,

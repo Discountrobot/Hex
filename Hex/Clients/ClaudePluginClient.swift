@@ -327,7 +327,8 @@ struct ClaudePluginClientLive: AgentIntegrationProvider {
       "Condense the assistant message below into a spoken heads-up for a text-to-speech reader. "
       "Surface only what the user needs to pay attention "
       "to: the key outcome, anything blocking, risky, or unexpected, and any question being asked. "
-      "Plain prose, no markdown or code. Output only the summary, nothing else.\n\n" + full
+      "You may use light markdown for emphasis (bold the key point, or a short bullet list if it "
+      "genuinely helps), but no code blocks. Output only the summary, nothing else.\n\n" + full
   )
   env = {**os.environ, "HEX_AGENT_SUMMARY": "1"}
   try:

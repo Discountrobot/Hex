@@ -309,9 +309,9 @@ struct AgentView: View {
 
       HStack(spacing: 10) {
         speakToggle
-        // Live condensed/full switch — only while reading aloud and the global condensed
-        // setting is on, so a summary actually exists to switch to.
-        if store.hexSettings.agentSpeakOutput, store.hexSettings.agentSpeakCondensed {
+        // Live condensed/full switch — only while reading aloud, the global condensed setting
+        // is on, and this card actually has a summary to switch to (short replies have none).
+        if store.hexSettings.agentSpeakOutput, store.hexSettings.agentSpeakCondensed, store.hasCondensed {
           condensedToggle
         }
 

@@ -140,6 +140,14 @@ struct AgentFeature {
 
     /// Whether the visible card is set to read its condensed summary aloud.
     var useCondensed: Bool { current?.useCondensed ?? false }
+    /// Whether the visible card actually has a condensed summary to switch to. Short replies
+    /// aren't condensed, so there's nothing to toggle — the control is hidden in that case.
+    var hasCondensed: Bool {
+      if case let .message(_, condensed) = current?.prompt, let condensed, !condensed.isEmpty {
+        return true
+      }
+      return false
+    }
     var selectedOptions: Set<String> { current?.selectedOptions ?? [] }
     var autoSendProgress: Double? { current?.autoSendProgress }
     /// The visible card's hook has timed out and can no longer be answered.

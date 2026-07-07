@@ -92,6 +92,24 @@ struct MenuBarCopyLastTranscriptButton: View {
   }
 }
 
+/// Menu bar toggle for agent mode, so it can be flipped without opening Settings.
+/// Mirrors SettingsFeature.toggleAgentPluginsEnabled: flip the flag, then re-sync the
+/// on-disk sentinels so integrations short-circuit immediately.
+struct MenuBarAgentModeToggle: View {
+  @Shared(.hexSettings) var hexSettings: HexSettings
+  @Dependency(\.agentIntegrations) var agentIntegrations
+
+  var body: some View {
+    Toggle("Agent Mode", isOn: Binding(
+      get: { hexSettings.agentPluginsEnabled },
+      set: { enabled in
+        $hexSettings.withLock { $0.agentPluginsEnabled = enabled }
+        Task { _ = await agentIntegrations.prepareAll() }
+      }
+    ))
+  }
+}
+
 #Preview {
   MenuBarCopyLastTranscriptButton()
 }

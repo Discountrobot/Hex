@@ -16,6 +16,8 @@ struct HexApp: App {
         MenuBarExtra {
             MenuBarCopyLastTranscriptButton()
 
+            MenuBarAgentModeToggle()
+
             Button("Settings…") {
                 appDelegate.presentSettingsView()
             }.keyboardShortcut(",")

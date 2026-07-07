@@ -319,7 +319,9 @@ struct ClaudePluginClientLive: AgentIntegrationProvider {
   if d.get("hook_event_name") != "Stop" or d.get("hex_condensed"):
       raise SystemExit(0)
   full = (d.get("last_assistant_message") or "").strip()
-  if not full:
+  # Don't condense a reply that's already short — the summary would be no shorter than the
+  # original, so just read the full text aloud instead of spending a model call.
+  if len(full) < 400:
       raise SystemExit(0)
   prompt = (
       "Condense the assistant message below into a spoken heads-up for a text-to-speech reader. "

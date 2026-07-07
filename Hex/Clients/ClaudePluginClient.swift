@@ -310,7 +310,7 @@ struct ClaudePluginClientLive: AgentIntegrationProvider {
   # cannot recurse into this hook; HEX_AGENT_SUMMARY guards the same at the top of this script.
   if [ -f "$READ_ALOUD_FLAG" ] && command -v claude >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
     PAYLOAD="$payload" python3 <<'PYEOF' 2>/dev/null || true
-  import json, os, subprocess
+  import json, os, subprocess, tempfile
   path = os.environ["PAYLOAD"]
   try:
       d = json.load(open(path))
@@ -329,9 +329,12 @@ struct ClaudePluginClientLive: AgentIntegrationProvider {
   )
   env = {**os.environ, "HEX_AGENT_SUMMARY": "1"}
   try:
+      # Run from a temp dir so this throwaway condensation doesn't create a session
+      # entry in the project's Claude Code history.
       out = subprocess.run(
           ["claude", "--safe-mode", "-p", prompt, "--model", "haiku"],
           capture_output=True, text=True, timeout=45, env=env,
+          cwd=tempfile.gettempdir(),
       )
   except Exception:
       raise SystemExit(0)

@@ -20,9 +20,9 @@
 		</dict>
 	</array>
 	<key>CFBundleShortVersionString</key>
-	<string>0.7.6</string>
+	<string>0.8.3</string>
 	<key>CFBundleVersion</key>
-	<string>86</string>
+	<string>90</string>
 	<key>NSAccessibilityUsageDescription</key>
 	<string>Hex needs accessibility access to monitor keyboard events for hotkey detection.</string>
 	<key>NSAppTransportSecurity</key>

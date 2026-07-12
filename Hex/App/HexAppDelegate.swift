@@ -46,6 +46,12 @@ class HexAppDelegate: NSObject, NSApplicationDelegate {
 			name: .updateAppMode,
 			object: nil
 		)
+		NotificationCenter.default.addObserver(
+			self,
+			selector: #selector(handlePresentSettingsWindow),
+			name: .presentSettingsWindow,
+			object: nil
+		)
 
 		// Show/hide the agent voice window whenever the feature's visibility changes.
 		agentVisibilityToken = observe { [weak self] in
@@ -214,6 +220,10 @@ class HexAppDelegate: NSObject, NSApplicationDelegate {
 		}
 	}
 
+	@objc private func handlePresentSettingsWindow() {
+		presentSettingsView()
+	}
+
 	@MainActor
 	private func updateAppMode() {
 		appLogger.debug("showDockIcon = \(self.hexSettings.showDockIcon)")
@@ -237,8 +247,24 @@ class HexAppDelegate: NSObject, NSApplicationDelegate {
 				AgentHookResponder.respond(payloadPath: payloadPath, json: nil)
 			}
 		}
-		Task {
+		// Wait for audio teardown before the process exits: a fire-and-forget Task here
+		// raced process exit, crashing inside AVAudioEngine teardown while tap callbacks
+		// were still in flight (#245). Pump the main run loop while waiting instead of
+		// blocking outright - cleanup() hops to the main actor/main queue (media-key
+		// resume, Core Audio listener removal), which a blocked main thread would deadlock.
+		let recording = recording
+		let semaphore = DispatchSemaphore(value: 0)
+		Task.detached {
 			await recording.cleanup()
+			semaphore.signal()
+		}
+		let deadline = Date().addingTimeInterval(3)
+		while semaphore.wait(timeout: .now()) == .timedOut {
+			guard Date() < deadline else {
+				appLogger.error("Recording cleanup timed out during app termination")
+				return
+			}
+			RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
 		}
 	}
 }

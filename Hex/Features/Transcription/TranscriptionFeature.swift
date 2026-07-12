@@ -18,7 +18,7 @@ private let transcriptionFeatureLogger = HexLog.transcription
 @Reducer
 struct TranscriptionFeature {
   @ObservableState
-  struct State {
+  struct State: Equatable {
     var isRecording: Bool = false
     var isTranscribing: Bool = false
     var isPrewarming: Bool = false
@@ -191,15 +191,10 @@ private extension TranscriptionFeature {
             return false
           }
 
-          // Process the key event
-          switch hotKeyProcessor.process(keyEvent: keyEvent) {
-          case .startRecording:
-            // If double-tap lock is triggered, we start recording immediately
-            if hotKeyProcessor.state == .doubleTapLock {
-              Task { await send(.startRecording) }
-            } else {
-              Task { await send(.hotKeyPressed) }
-            }
+		  // Process the key event
+		  switch hotKeyProcessor.process(keyEvent: keyEvent) {
+		  case .startRecording:
+			Task { await send(.hotKeyPressed) }
             // If the hotkey is purely modifiers, return false to keep it from interfering with normal usage
             // But if useDoubleTapOnly is true, always intercept the key
             return useDoubleTapOnly || keyEvent.key != nil
@@ -355,10 +350,23 @@ private extension TranscriptionFeature {
       return handleDiscard(&state)
     }
 
+    let model = state.hexSettings.selectedModel
+    guard !model.isEmpty else {
+      // Defense-in-depth: handleStartRecording already blocks recording when the
+      // bootstrap state says no model is ready, but settings can change while a
+      // recording is in flight (or the in-memory bootstrap default can race a
+      // cold launch). Never hand an empty model name to the transcriber: it
+      // silently produces nothing (or junk like "[BLANK_AUDIO]").
+      transcriptionFeatureLogger.error("Recording stopped with no transcription model selected; discarding audio")
+      return .merge(
+        handleDiscard(&state),
+        .send(.modelMissing)
+      )
+    }
+
     // Otherwise, proceed to transcription
     state.isTranscribing = true
     state.error = nil
-    let model = state.hexSettings.selectedModel
     let language = state.hexSettings.outputLanguage
 
     state.isPrewarming = true
@@ -376,7 +384,23 @@ private extension TranscriptionFeature {
           }
         }
         do {
-          let capturedURL = await recording.stopRecording()
+          let stopResult = await recording.stopRecording()
+          let capturedURL: URL
+          switch stopResult {
+          case let .captured(url):
+            capturedURL = url
+          case .ignored(.staleSession):
+            transcriptionFeatureLogger.notice("Ignoring transcription stop superseded by a newer recording session")
+            return
+          case .ignored(.noActiveRecording):
+            transcriptionFeatureLogger.error("Recording stopped without captured audio")
+            await send(.transcriptionError(RecordingFailure.noCapturedAudio, nil))
+            return
+          case let .failed(error):
+            transcriptionFeatureLogger.error("Recording stop failed: \(error.localizedDescription)")
+            await send(.transcriptionError(error, nil))
+            return
+          }
           audioURL = capturedURL
           guard !Task.isCancelled else { return }
           soundEffect.play(.stopRecording)
@@ -456,7 +480,15 @@ private extension TranscriptionFeature {
       if remappedResult != output {
         transcriptionFeatureLogger.info("Applied \(remappings.count) word remapping(s)")
       }
-      modifiedResult = remappedResult
+      let formattedResult = TranscriptFormattingApplier.apply(
+        remappedResult,
+        lowercase: state.hexSettings.lowercaseTranscripts,
+        removePunctuation: state.hexSettings.removePunctuation
+      )
+      if formattedResult != remappedResult {
+        transcriptionFeatureLogger.info("Applied paste formatting")
+      }
+      modifiedResult = formattedResult
     }
 
     guard !modifiedResult.isEmpty else {
@@ -564,10 +596,12 @@ private extension TranscriptionFeature {
           return
         }
         // Stop the recording to release microphone access
-        let url = await recording.stopRecording()
-        guard !Task.isCancelled else { return }
-        FileManager.default.removeItemIfExists(at: url)
-        soundEffect.play(.cancel)
+		let result = await recording.stopRecording()
+		if case let .captured(url) = result {
+		  FileManager.default.removeItemIfExists(at: url)
+		}
+		guard !Task.isCancelled else { return }
+		soundEffect.play(.cancel)
       }
       .cancellable(id: CancelID.recordingCleanup, cancelInFlight: true)
     )
@@ -583,9 +617,11 @@ private extension TranscriptionFeature {
       .run { [sleepManagement] _ in
         // Allow system to sleep again
         await sleepManagement.allowSleep()
-        let url = await recording.stopRecording()
-        guard !Task.isCancelled else { return }
-        FileManager.default.removeItemIfExists(at: url)
+		let result = await recording.stopRecording()
+		if case let .captured(url) = result {
+		  FileManager.default.removeItemIfExists(at: url)
+		}
+		guard !Task.isCancelled else { return }
       }
       .cancellable(id: CancelID.recordingCleanup, cancelInFlight: true)
     )

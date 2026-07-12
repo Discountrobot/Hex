@@ -47,6 +47,8 @@ public struct HexSettings: Codable, Equatable, Sendable {
 	public var wordRemovalsEnabled: Bool
 	public var wordRemovals: [WordRemoval]
 	public var wordRemappings: [WordRemapping]
+	public var lowercaseTranscripts: Bool
+	public var removePunctuation: Bool
 	/// Enables the Agent Plugins voice window for Claude Code (and future agents).
 	public var agentPluginsEnabled: Bool
 	/// When true, sending a reply also presses Return so it submits immediately.
@@ -95,6 +97,8 @@ public struct HexSettings: Codable, Equatable, Sendable {
 		wordRemovalsEnabled: Bool = false,
 		wordRemovals: [WordRemoval] = HexSettings.defaultWordRemovals,
 		wordRemappings: [WordRemapping] = [],
+		lowercaseTranscripts: Bool = false,
+		removePunctuation: Bool = false,
 		agentPluginsEnabled: Bool = false,
 		agentAutoSubmit: Bool = true,
 		agentSpeakOutput: Bool = false,
@@ -126,6 +130,8 @@ public struct HexSettings: Codable, Equatable, Sendable {
 		self.wordRemovalsEnabled = wordRemovalsEnabled
 		self.wordRemovals = wordRemovals
 		self.wordRemappings = wordRemappings
+		self.lowercaseTranscripts = lowercaseTranscripts
+		self.removePunctuation = removePunctuation
 		self.agentPluginsEnabled = agentPluginsEnabled
 		self.agentAutoSubmit = agentAutoSubmit
 		self.agentSpeakOutput = agentSpeakOutput
@@ -180,6 +186,8 @@ private enum HexSettingKey: String, CodingKey, CaseIterable {
 	case wordRemovalsEnabled
 	case wordRemovals
 	case wordRemappings
+	case lowercaseTranscripts
+	case removePunctuation
 	case agentPluginsEnabled
 	case agentAutoSubmit
 	case agentSpeakOutput
@@ -319,6 +327,8 @@ private enum HexSettingsSchema {
 			keyPath: \.wordRemappings,
 			default: defaults.wordRemappings
 		).eraseToAny(),
+		SettingsField(.lowercaseTranscripts, keyPath: \.lowercaseTranscripts, default: defaults.lowercaseTranscripts).eraseToAny(),
+		SettingsField(.removePunctuation, keyPath: \.removePunctuation, default: defaults.removePunctuation).eraseToAny(),
 		SettingsField(.agentPluginsEnabled, keyPath: \.agentPluginsEnabled, default: defaults.agentPluginsEnabled).eraseToAny(),
 		SettingsField(.agentAutoSubmit, keyPath: \.agentAutoSubmit, default: defaults.agentAutoSubmit).eraseToAny(),
 		SettingsField(.agentSpeakOutput, keyPath: \.agentSpeakOutput, default: defaults.agentSpeakOutput).eraseToAny(),

@@ -112,8 +112,11 @@ class KeyEventMonitorClientLive {
 
   private let trustCheckIntervalNanoseconds: UInt64 = 100_000_000 // 100ms
 
+  private static let queueSpecificKey = DispatchSpecificKey<Void>()
+
   init() {
     logger.info("Initializing HotKeyClient with CGEvent tap.")
+    queue.setSpecific(key: Self.queueSpecificKey, value: ())
     registerSystemEventObservers()
   }
 
@@ -577,6 +580,12 @@ extension KeyEventMonitorClientLive {
     }
     // A stale TCC cache can report denied while key events demonstrably flow (#250);
     // trust the events over the check so the watchdog and settings UI stay honest.
+    // This runs both on and off the monitor queue (startMonitoring reaches here from
+    // inside a barrier block); dispatch_sync onto the current queue traps, so read
+    // directly when already on it.
+    if DispatchQueue.getSpecific(key: Self.queueSpecificKey) != nil {
+      return inputMonitoringProvenByEvents
+    }
     return queue.sync { inputMonitoringProvenByEvents }
   }
 

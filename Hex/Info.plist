@@ -8,6 +8,8 @@
 	<string>AppIcon</string>
 	<key>CFBundleIconName</key>
 	<string>AppIcon</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.9.0</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -19,10 +21,8 @@
 			</array>
 		</dict>
 	</array>
-	<key>CFBundleShortVersionString</key>
-	<string>0.8.5</string>
 	<key>CFBundleVersion</key>
-	<string>92</string>
+	<string>93</string>
 	<key>NSAccessibilityUsageDescription</key>
 	<string>Hex needs accessibility access to monitor keyboard events for hotkey detection.</string>
 	<key>NSAppTransportSecurity</key>

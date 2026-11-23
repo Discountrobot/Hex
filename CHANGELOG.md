@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.9.0
+
+### Minor Changes
+
+- e782e12: Add a condensed read-aloud toggle to the Agent voice window: a button next to the mute control switches between reading the full reply and a short spoken summary that the Claude Code hook generates headlessly via 'claude --safe-mode -p' (only while read-aloud is on), keeping the terminal output clean
+- 8dc4d53: Add **Agent Plugins** — an opt-in voice window for coding agents (#2). When an installed agent finishes a turn, asks a multiple-choice question, or requests a permission, a floating window appears so you can answer by voice, typing, or tapping an option without leaving your editor.
+
+  - **Claude Code and pi:** ships integrations for both Claude Code and the pi coding agent, each behind a one-time copy-paste setup. They share a single `AgentIntegrationsClient` registry, so adding another agent is just one provider.
+  - **Sandbox-friendly install:** Hex stays sandboxed and never edits `~/.claude` or `~/.pi` itself. Settings → Agent Plugins shows a copy-paste terminal command that registers the hook/extension; the hook and Hex exchange messages through Hex's own container.
+  - **In-band replies:** answers are delivered to the exact agent session via a response file the hook relays — they can never land in the wrong window, and a reply can't silently fail after a card's hook has timed out.
+  - **Concurrent sessions:** blocked sessions queue one card at a time, and a header selector of project avatars (the repo's GitHub owner) switches between the ones waiting. Each card's header shows the project name and its current git branch.
+  - **Stays out of your way:** a hook-driven card appears passively without stealing keyboard focus from the editor you're typing in; engage it to reply, and any Enter (with or without a modifier) sends.
+  - **Optional read-aloud:** agent output can be spoken on-device via Kokoro TTS, with a selectable voice and a distinct voice per concurrent project.
+
+### Patch Changes
+
+- 11be7ae: Skip read-aloud condensation for already-short agent replies to save a model call
+- d8e4d64: Hide the condensed read-aloud toggle when a reply has no summary (short replies)
+- af0ac78: Run read-aloud condensation from a temp dir so it doesn't pollute Claude Code project history
+- 664d1f5: Add a global "Condensed Read-Aloud" setting. When off (the default) the voice window reads the full reply and the agent is never asked for a summary, so it costs no extra tokens. When on, each turn is condensed to a short summary that's read aloud, and the voice window's per-card toggle flips between the summary and the full reply instantly.
+- 71ca9d5: Prevent crash when pasting a very large reply into the agent voice window (clamp draft length)
+- 5237c9e: Allow light markdown in condensed read-aloud summaries for card styling
+- Make the agent voice window draggable: drag a card by its header, padding or empty space to move it
+
 ## 0.8.5
 
 ### Patch Changes

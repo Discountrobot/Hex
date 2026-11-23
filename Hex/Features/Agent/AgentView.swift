@@ -72,6 +72,8 @@ struct AgentView: View {
         }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
+      // The scroll view sits above the card's own drag area, so its content needs one too.
+      .background(WindowDragArea())
     }
     .frame(maxHeight: 420)
     .fixedSize(horizontal: false, vertical: true)
@@ -433,6 +435,8 @@ struct AgentView: View {
 private struct FloatingCard: ViewModifier {
   func body(content: Content) -> some View {
     content
+      // Empty card space and padding drag the whole panel; controls in front keep their clicks.
+      .background(WindowDragArea())
       // Translucent frosted glass: the blur keeps text legible while the terminal
       // shows through behind it (vs. the near-opaque .ultraThickMaterial).
       .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))

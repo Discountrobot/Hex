@@ -1,8 +1,14 @@
-# Hex — Voice → Text
+# Hex Has Moved
+
+Hex has moved to **[anomalyco/hex](https://github.com/anomalyco/hex)**. This Swift app is no longer maintained.
+Download the new app at **[hex.kitlangton.com](https://hex.kitlangton.com)**, and please file new issues on [anomalyco/hex](https://github.com/anomalyco/hex/issues).
+This repository preserves the original Swift app, its history, and its releases.
+
+## Legacy Swift App
 
 Press-and-hold a hotkey to transcribe your voice and paste the result wherever you're typing.
 
-**[Download Hex for macOS](https://hex-updates.s3.us-east-1.amazonaws.com/hex-latest.dmg)**
+**[Download the legacy Swift version](https://hex-updates.s3.us-east-1.amazonaws.com/hex-latest.dmg)**
 
 > **Note:** Hex is currently only available for **Apple Silicon** Macs.
 
@@ -11,7 +17,10 @@ Or download via homebrew:
 brew install --cask kitlangton-hex
 ```
 
-I've opened-sourced the project in the hopes that others will find it useful! Hex supports both [Parakeet TDT v3](https://github.com/FluidInference/FluidAudio) via the awesome [FluidAudio](https://github.com/FluidInference/FluidAudio) (the default—it's frickin' unbelievable: fast, multilingual, and cloud-optimized) and the awesome [WhisperKit](https://github.com/argmaxinc/WhisperKit) for on-device transcription. We use the incredible [Swift Composable Architecture](https://github.com/pointfreeco/swift-composable-architecture) for structuring the app. Please open issues with any questions or feedback! ❤️
+The Swift version supports [Parakeet TDT v3](https://github.com/FluidInference/FluidAudio)
+through [FluidAudio](https://github.com/FluidInference/FluidAudio) and
+[WhisperKit](https://github.com/argmaxinc/WhisperKit) for on-device transcription.
+It uses the [Swift Composable Architecture](https://github.com/pointfreeco/swift-composable-architecture).
 
 ## Instructions
 
@@ -24,9 +33,11 @@ Once you've configured a global hotkey, there are **two recording modes**:
 
 ## Contributing
 
-**Issue reports are welcome!** If you encounter bugs or have feature requests, please [open an issue](https://github.com/kitlangton/Hex/issues).
-
-**Note on Pull Requests:** At this stage, I'm not actively reviewing code contributions for significant features or core logic changes. The project is evolving rapidly and it's easier for me to work directly from issue reports. Bug fixes and documentation improvements are still appreciated, but please open an issue first to discuss before investing time in a large PR. Thanks for understanding!
+For the Rust beta, new features, and current development, use
+**[anomalyco/hex](https://github.com/anomalyco/hex)**.
+Issues specific to the legacy Swift app can still be reported
+[here](https://github.com/kitlangton/Hex/issues). Please discuss substantial legacy
+changes before opening a pull request.
 
 ### Changelog workflow
 

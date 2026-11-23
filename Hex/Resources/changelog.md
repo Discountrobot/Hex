@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.5
+
+### Patch Changes
+
+- df37c99: Add a dismissible Settings banner linking to the Rust Hex beta at hex.kitlangton.com, with a persistent About link (#291).
+
 ## 0.8.4
 
 ### Patch Changes
